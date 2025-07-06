@@ -4,8 +4,6 @@ services:
     build:
       context: ./auth-api
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
     env_file:
       - ./auth-api/.env
     environment:
@@ -15,18 +13,10 @@ services:
     networks:
       - auth-network
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth-api.rule=Host(`api.auth.yourdomain.com`)"
-      - "traefik.http.routers.auth-api.entrypoints=websecure"
-      - "traefik.http.routers.auth-api.tls.certresolver=myresolver"
-      - "traefik.http.services.auth-api.loadbalancer.server.port=3000"
 
   auth-base:
     container_name: auth-base
     image: ghcr.io/muchobien/pocketbase:latest
-    ports:
-      - "8090:8090"
     volumes:
       - auth_data:/pb_data
     environment:
@@ -37,8 +27,8 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.auth-base.rule=Host(`auth.yourdomain.com`)"
-      - "traefik.http.routers.auth-base.entrypoints=websecure"
+      - "traefik.http.routers.auth-base.rule=Host(`bisia.fumis.it`)"
+      - "traefik.http.routers.auth-base.entrypoints=websecure-8090"
       - "traefik.http.routers.auth-base.tls.certresolver=myresolver"
       - "traefik.http.services.auth-base.loadbalancer.server.port=8090"
 
@@ -47,8 +37,6 @@ services:
     build:
       context: ./bisia-api
       dockerfile: Dockerfile
-    ports:
-      - "3001:3000"
     env_file:
       - ./bisia-api/.env
     environment:
@@ -60,7 +48,7 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bisia-api.rule=Host(`api.bisia.yourdomain.com`)"
+      - "traefik.http.routers.bisia-api.rule=Host(`bisia-api.fumis.it`)"
       - "traefik.http.routers.bisia-api.entrypoints=websecure"
       - "traefik.http.routers.bisia-api.tls.certresolver=myresolver"
       - "traefik.http.services.bisia-api.loadbalancer.server.port=3000"
@@ -68,24 +56,22 @@ services:
   bisia-base:
     container_name: bisia-base
     image: ghcr.io/muchobien/pocketbase:latest
-    ports:
-      - "8091:8090"
     volumes:
       - bisia_data:/pb_data
     environment:
-      - POCKETBASE_PORT=8090
-      - POCKETBASE_BIND=0.0.0.0:8090
+      - POCKETBASE_PORT=8091
+      - POCKETBASE_BIND=0.0.0.0:8091
     networks:
       - auth-network
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bisia-base.rule=Host(`bisia.yourdomain.com`)"
-      - "traefik.http.routers.bisia-base.entrypoints=websecure"
+      - "traefik.http.routers.bisia-base.rule=Host(`bisia.fumis.it`)"
+      - "traefik.http.routers.bisia-base.entrypoints=websecure-8091"
       - "traefik.http.routers.bisia-base.tls.certresolver=myresolver"
-      - "traefik.http.services.bisia-base.loadbalancer.server.port=8090"
+      - "traefik.http.services.bisia-base.loadbalancer.server.port=8091"
 
-  frontend:
+  bisia-frontend:
     container_name: bisia-frontend
     build:
       context: ./bisia-frontend
@@ -94,13 +80,13 @@ services:
       - NODE_ENV=production
     networks:
       - auth-network
+    restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`app.yourdomain.com`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-    restart: unless-stopped
+      - "traefik.http.routers.bisia-frontend.rule=Host(`bisia.fumis.it`)"
+      - "traefik.http.routers.bisia-frontend.entrypoints=websecure"
+      - "traefik.http.routers.bisia-frontend.tls.certresolver=myresolver"
+      - "traefik.http.services.bisia-frontend.loadbalancer.server.port=3000"
 
   traefik:
     image: traefik:v2.10
@@ -113,18 +99,44 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure-8090.address=:8090"
+      - "--entrypoints.websecure-8091.address=:8091"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.email=admin@fumis.it"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
       - "443:443"
+      - "8090:8090"
+      - "8091:8091"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
     networks:
       - auth-network
     restart: unless-stopped
+
+  # smtp-transactional:
+  #   build: ./smtp
+  #   container_name: smtp-transactional
+  #   environment:
+  #     - MAIL_HOSTNAME=smtp.fumis.it
+  #     - MAIL_DOMAIN=smtp.fumis.it
+  #     - SMTP_USER=${SMTP_USER:-noreply@smtp.fumis.it}
+  #     - SMTP_PASS=${SMTP_PASS:-your-secure-password}
+  #   volumes:
+  #     - mail_logs:/var/log/mail
+  #     - ./ssl:/etc/ssl/certs:ro
+  #     - /etc/opendkim/keys/fumis.it/mail.private:/etc/opendkim/keys/fumis.it/mail.private:ro
+  #   networks:
+  #     - auth-network
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.smtp.rule=Host(`smtp.fumis.it`)"
+  #     - "traefik.http.routers.smtp.entrypoints=websecure"
+  #     - "traefik.http.routers.smtp.tls.certresolver=myresolver"
+  #     - "traefik.http.services.smtp.loadbalancer.server.port=25"
 
 networks:
   auth-network:
@@ -134,4 +146,4 @@ volumes:
   auth_data:
     driver: local
   bisia_data:
-    driver: local 
+    driver: local
