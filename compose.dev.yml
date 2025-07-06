@@ -1,0 +1,113 @@
+services:
+  auth-api:
+    container_name: auth-api
+    build:
+      context: ./auth-api
+      dockerfile: Dockerfile
+    # ports:
+    #  - "3000:3000"
+    env_file:
+      - ./auth-api/.env.development
+      - .env.development
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - auth-base
+    networks:
+      - auth-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ./auth-api
+
+  auth-base:
+    container_name: auth-base
+    image: ghcr.io/muchobien/pocketbase:latest
+    ports:
+      - "8090:8090"
+    volumes:
+      - auth_data:/pb_data
+    environment:
+      - POCKETBASE_PORT=8090
+      - POCKETBASE_BIND=0.0.0.0:8090
+    networks:
+      - auth-network
+
+  bisia-api:
+    container_name: bisia-api
+    build:
+      context: ./bisia-api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./bisia-api/.env.development
+      - .env.development
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - bisia-base
+    networks:
+      - auth-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ./bisia-api
+
+  bisia-base:
+    container_name: bisia-base
+    image: ghcr.io/muchobien/pocketbase:latest
+    ports:
+      - "8091:8090"
+    volumes:
+      - bisia_data:/pb_data
+    environment:
+      - POCKETBASE_PORT=8090
+      - POCKETBASE_BIND=0.0.0.0:8090
+    networks:
+      - auth-network
+
+  bisia-frontend:
+    container_name: bisia-frontend
+    build:
+      context: ./bisia-frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./bisia-frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - auth-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ./bisia-frontend
+
+  # smtp-transactional:
+  #   build: ./smtp
+  #   container_name: smtp-transactional
+  #   environment:
+  #     - MAIL_HOSTNAME=smtp.bisiacaria.com
+  #     - MAIL_DOMAIN=smtp.bisiacaria.com
+  #     - SMTP_USER=${SMTP_USER:-noreply@smtp.bisiacaria.com}
+  #     - SMTP_PASS=${SMTP_PASS:-your-secure-password}
+  #   volumes:
+  #     - mail_logs:/var/log/mail
+  #     - ./ssl:/etc/ssl/certs:ro
+  #     - /etc/opendkim/keys/bisiacaria.com/mail.private:/etc/opendkim/keys/bisiacaria.com/mail.private:ro
+  #   networks:
+  #     - auth_network
+  #   restart: unless-stopped
+
+networks:
+  auth-network:
+    driver: bridge
+
+volumes:
+  auth_data:
+    driver: local
+  bisia_data:
+    driver: local

@@ -1,0 +1,26 @@
+{
+  "name": "auth-platform-bun",
+  "version": "1.0.0",
+  "description": "Auth Platform for Bun",
+  "author": "Fabio Fumis",
+  "license": "MIT",
+  "scripts": {
+    "dev": "docker compose -f docker-compose.development.yml up -d --build && NODE_ENV=development bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist",
+    "start": "bun run dist/index.js"
+  },
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.6",
+    "hono": "^4.7.11",
+    "pocketbase": "^0.26.0",
+    "slugify": "^1.6.6",
+    "zod": "^3.25.48"
+  }
+}

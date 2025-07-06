@@ -1,0 +1,137 @@
+services:
+  auth-api:
+    container_name: auth-api
+    build:
+      context: ./auth-api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./auth-api/.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - auth-base
+    networks:
+      - auth-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-api.rule=Host(`api.auth.yourdomain.com`)"
+      - "traefik.http.routers.auth-api.entrypoints=websecure"
+      - "traefik.http.routers.auth-api.tls.certresolver=myresolver"
+      - "traefik.http.services.auth-api.loadbalancer.server.port=3000"
+
+  auth-base:
+    container_name: auth-base
+    image: ghcr.io/muchobien/pocketbase:latest
+    ports:
+      - "8090:8090"
+    volumes:
+      - auth_data:/pb_data
+    environment:
+      - POCKETBASE_PORT=8090
+      - POCKETBASE_BIND=0.0.0.0:8090
+    networks:
+      - auth-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-base.rule=Host(`auth.yourdomain.com`)"
+      - "traefik.http.routers.auth-base.entrypoints=websecure"
+      - "traefik.http.routers.auth-base.tls.certresolver=myresolver"
+      - "traefik.http.services.auth-base.loadbalancer.server.port=8090"
+
+  bisia-api:
+    container_name: bisia-api
+    build:
+      context: ./bisia-api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./bisia-api/.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - bisia-base
+    networks:
+      - auth-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bisia-api.rule=Host(`api.bisia.yourdomain.com`)"
+      - "traefik.http.routers.bisia-api.entrypoints=websecure"
+      - "traefik.http.routers.bisia-api.tls.certresolver=myresolver"
+      - "traefik.http.services.bisia-api.loadbalancer.server.port=3000"
+
+  bisia-base:
+    container_name: bisia-base
+    image: ghcr.io/muchobien/pocketbase:latest
+    ports:
+      - "8091:8090"
+    volumes:
+      - bisia_data:/pb_data
+    environment:
+      - POCKETBASE_PORT=8090
+      - POCKETBASE_BIND=0.0.0.0:8090
+    networks:
+      - auth-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bisia-base.rule=Host(`bisia.yourdomain.com`)"
+      - "traefik.http.routers.bisia-base.entrypoints=websecure"
+      - "traefik.http.routers.bisia-base.tls.certresolver=myresolver"
+      - "traefik.http.services.bisia-base.loadbalancer.server.port=8090"
+
+  frontend:
+    container_name: bisia-frontend
+    build:
+      context: ./bisia-frontend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    networks:
+      - auth-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`app.yourdomain.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - auth-network
+    restart: unless-stopped
+
+networks:
+  auth-network:
+    driver: bridge
+
+volumes:
+  auth_data:
+    driver: local
+  bisia_data:
+    driver: local 
