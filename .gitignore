@@ -3,5 +3,3 @@
 .env.development
 .env.test
 .env.production
-
-cursor_configurare_un_server_smtp_con_d.md

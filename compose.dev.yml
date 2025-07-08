@@ -4,8 +4,6 @@ services:
     build:
       context: ./auth-api
       dockerfile: Dockerfile
-    # ports:
-    #  - "3000:3000"
     env_file:
       - ./auth-api/.env.development
       - .env.development
@@ -86,28 +84,16 @@ services:
         - action: rebuild
           path: ./bisia-frontend
 
-  # smtp-transactional:
-  #   build: ./smtp
-  #   container_name: smtp-transactional
-  #   environment:
-  #     - MAIL_HOSTNAME=smtp.bisiacaria.com
-  #     - MAIL_DOMAIN=smtp.bisiacaria.com
-  #     - SMTP_USER=${SMTP_USER:-noreply@smtp.bisiacaria.com}
-  #     - SMTP_PASS=${SMTP_PASS:-your-secure-password}
-  #   volumes:
-  #     - mail_logs:/var/log/mail
-  #     - ./ssl:/etc/ssl/certs:ro
-  #     - /etc/opendkim/keys/bisiacaria.com/mail.private:/etc/opendkim/keys/bisiacaria.com/mail.private:ro
-  #   networks:
-  #     - auth_network
-  #   restart: unless-stopped
-
 networks:
   auth-network:
     driver: bridge
 
 volumes:
   auth_data:
-    driver: local
+    # driver: local
+    external: true
+    name: docker-compose_auth_data
   bisia_data:
-    driver: local
+    # driver: local
+    external: true
+    name: docker-compose_bisia_data
