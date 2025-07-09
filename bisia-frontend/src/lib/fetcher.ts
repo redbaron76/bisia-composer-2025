@@ -9,11 +9,6 @@ interface FetchOptions extends RequestInit {
   credentials?: RequestCredentials;
 }
 
-type FetcherResponse = {
-  message?: string;
-  status?: number;
-};
-
 type RefreshResponse = {
   accessToken?: string;
   refreshToken?: string;
