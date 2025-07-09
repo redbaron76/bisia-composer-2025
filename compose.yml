@@ -27,7 +27,7 @@ services:
       - POCKETBASE_PORT=8090
       - POCKETBASE_BIND=0.0.0.0:8090
     networks:
-      - app_network
+      - auth-network
     restart: unless-stopped
 
   # Bisia API
@@ -59,7 +59,7 @@ services:
       - POCKETBASE_PORT=8090
       - POCKETBASE_BIND=0.0.0.0:8090
     networks:
-      - app_network
+      - auth-network
     restart: unless-stopped
 
   # Frontend
@@ -79,15 +79,12 @@ services:
       - auth-api
       - bisia-api
     networks:
-      - app_network
+      - auth-network
     restart: unless-stopped
 
 networks:
-  app_network:
+  auth-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.18.0.0/16
 
 volumes:
   auth_data:
