@@ -12,7 +12,7 @@ import type {
   UsernameEmail,
   UsernameEmailOrPhone,
 } from "@/schemas/auth";
-import { getFetcher, handleApiError, postFetcher } from "@/lib/fetcher";
+import { getFetcher, postFetcher } from "@/lib/fetcher";
 
 import { deleteFirebaseUser } from "./firebase";
 import { env } from "@/env";
@@ -22,12 +22,13 @@ import { z } from "zod";
 export const doCheckUsername = async (
   data: UsernameEmailOrPhone
 ): Promise<CheckUsername> => {
-  const resp = await postFetcher<CheckUsername>(
+  return await postFetcher<CheckUsername>(
     `${env.VITE_API_URL}/auth/check-username`,
-    data
+    data,
+    {
+      errorFallbackMessage: "Errore durante il controllo username",
+    }
   );
-
-  return handleApiError(resp, "Errore durante il controllo username");
 };
 
 export const doLogin = async (
@@ -38,10 +39,14 @@ export const doLogin = async (
     {
       email: data.email,
       password: data.password,
+    },
+    {
+      errorFallbackMessage: "Errore durante il login",
     }
   );
 
-  return handleApiError(resp, "Errore durante il login");
+  console.log("doLogin resp", resp);
+  return resp;
 };
 
 export const doSignUpWithEmail = async (
@@ -56,18 +61,19 @@ export const doSignUpWithEmail = async (
 export const doSendOtpWithEmail = async (
   data: OtpConfirmation
 ): Promise<OtpResponse> => {
-  const resp = await postFetcher<OtpResponse>(
+  return await postFetcher<OtpResponse>(
     `${env.VITE_API_URL}/auth/otp-confirmation`,
-    data
+    data,
+    {
+      errorFallbackMessage: "Errore durante l'invio OTP",
+    }
   );
-
-  return handleApiError(resp, "Errore durante l'invio OTP");
 };
 
 export const doPasswordlessIn = async (
   data: z.infer<typeof PasswordlessAccessSchema>
 ): Promise<AuthResponse> => {
-  const resp = await postFetcher<AuthResponse>(
+  return await postFetcher<AuthResponse>(
     `${env.VITE_API_URL}/auth/passwordless`,
     {
       username: data.username,
@@ -76,21 +82,23 @@ export const doPasswordlessIn = async (
       userId: data.userId,
       refId: data.refId,
       provider: data.provider,
+    },
+    {
+      errorFallbackMessage: "Errore durante l'accesso passwordless",
     }
   );
-
-  return handleApiError(resp, "Errore durante l'accesso passwordless");
 };
 
 export const doLogout = async (): Promise<ApiResponse> => {
-  const resp = await postFetcher<ApiResponse>(
+  return await postFetcher<ApiResponse>(
     `${env.VITE_API_URL}/auth/logout`,
     {
       credentials: "include",
+    },
+    {
+      errorFallbackMessage: "Errore durante il logout",
     }
   );
-
-  return handleApiError(resp, "Errore durante il logout");
 };
 
 export const doProtected = async (): Promise<{ message: string }> => {

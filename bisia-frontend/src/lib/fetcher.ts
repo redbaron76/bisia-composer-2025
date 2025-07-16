@@ -8,20 +8,8 @@ interface FetchOptions extends RequestInit {
   sleepSeconds?: number;
   responseType?: "json" | "text";
   credentials?: RequestCredentials;
+  errorFallbackMessage?: string;
 }
-
-/**
- * Helper per gestire gli errori nelle risposte API
- * @param resp - La risposta dell'API
- * @param fallbackMessage - Messaggio di fallback se non c'è un messaggio specifico
- * @throws Error se la risposta contiene un errore
- */
-export const handleApiError = (resp: any, fallbackMessage: string) => {
-  if (resp && resp.error === true) {
-    throw new Error(resp.message || fallbackMessage);
-  }
-  return resp;
-};
 
 /**
  * Riautentica la richiesta se il token è scaduto
@@ -82,7 +70,6 @@ const handleResponse = async (
         case 400:
         case 500:
         case 404:
-          // Gestisce la struttura standardizzata delle risposte di errore
           if (typeof resp === "object" && resp.error === true && resp.message) {
             throw new Error(resp.message);
           } else if (typeof resp === "string") {
@@ -93,6 +80,13 @@ const handleResponse = async (
         default:
           throw new Error(response.statusText);
       }
+    }
+
+    // Gestione automatica errori API su tutte le risposte
+    if (typeof resp === "object" && resp.error === true) {
+      throw new Error(
+        resp.message || options.errorFallbackMessage || "Errore API"
+      );
     }
 
     return resp;
@@ -152,7 +146,9 @@ export const postFetcher = async <TResponse>(
     ...fetchOptions,
   });
 
-  return (await handleResponse(response, options)) as TResponse;
+  return (await handleResponse(response, {
+    ...options,
+  })) as TResponse;
 };
 
 export const getFetcher = async <TResponse>(
@@ -164,7 +160,9 @@ export const getFetcher = async <TResponse>(
     ...options,
   });
 
-  return (await handleResponse(response, options)) as TResponse;
+  return (await handleResponse(response, {
+    ...options,
+  })) as TResponse;
 };
 
 export const putFetcher = async <TResponse>(
@@ -183,7 +181,9 @@ export const putFetcher = async <TResponse>(
     ...fetchOptions,
   });
 
-  return (await handleResponse(response, options)) as TResponse;
+  return (await handleResponse(response, {
+    ...options,
+  })) as TResponse;
 };
 
 export const deleteFetcher = async <TResponse>(
@@ -195,5 +195,7 @@ export const deleteFetcher = async <TResponse>(
     ...options,
   });
 
-  return (await handleResponse(response, options)) as TResponse;
+  return (await handleResponse(response, {
+    ...options,
+  })) as TResponse;
 };

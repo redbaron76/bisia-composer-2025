@@ -45,7 +45,6 @@ export const useAuth = () => {
   const loginMutation = useMutation({
     mutationFn: doLogin,
     onSuccess: (data) => {
-      console.log("loginMutation onSuccess data", data);
       const convertedUser = convertSignupUserToUser(data.user);
       useAuthStore.setState({
         accessToken: data.accessToken,

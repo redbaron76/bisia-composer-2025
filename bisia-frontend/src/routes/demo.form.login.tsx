@@ -21,11 +21,6 @@ function LoginForm() {
     }))
   );
 
-  useEffect(() => {
-    console.log("message", message);
-    console.log("error", error);
-  }, [message, error]);
-
   const form = useAppForm({
     defaultValues: {
       email: "",

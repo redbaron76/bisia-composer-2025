@@ -26,7 +26,6 @@ export const useAuthStore = create<AuthStore>()(
       confirmationResult: null,
 
       setMessage: (error: boolean, message?: string) => {
-        console.log("setMessage", error, message);
         set({ error, message });
       },
 
