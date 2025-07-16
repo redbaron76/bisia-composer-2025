@@ -20,6 +20,10 @@ export default function Header() {
           <Link to="/demo/form/phone">Phone Login</Link>
         </div>
 
+        <div className="px-2 font-bold">
+          <Link to="/demo/form/email">Email Login</Link>
+        </div>
+
         {/* <div className="px-2 font-bold">
           <Link to="/demo/form/simple">Simple Form</Link>
         </div>

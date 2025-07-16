@@ -1,4 +1,4 @@
-import type { JwtPayload, SignupData, SignupUser, Variables } from "@/types";
+import type { AppContext, JwtPayload, SignupData, SignupUser } from "@/types";
 import {
   checkIsAppAuthorized,
   checkIsUsernameAvailable,
@@ -6,6 +6,7 @@ import {
   deleteRefreshToken,
   deleteRefreshTokenByUserId,
   deleteUserById,
+  deteleExpiredOtp as deleteExpiredOtp,
   findRefreshTokenByUserId,
   findUserById,
   findUserByKeyReference,
@@ -16,8 +17,10 @@ import { Hono } from "hono";
 import { env } from "@/env";
 import { generateAccessAndRefreshTokens } from "@/middleware/auth";
 import { verify } from "hono/jwt";
+import { generateOtp, generateOtpExpiration } from "@/libs/tools";
+import { HTTPException } from "hono/http-exception";
 
-const auth = new Hono<{ Variables: Variables }>();
+const auth = new Hono<AppContext>();
 
 /**
  * Signup
@@ -25,27 +28,35 @@ const auth = new Hono<{ Variables: Variables }>();
  * @returns The response
  */
 auth.post("/signup", async (c) => {
+  const { username, email, password } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /signup",
+    });
+  }
+
+  if (!email && !username) {
+    throw new HTTPException(400, {
+      message: "Email o username sono obbligatori",
+    });
+  }
+
+  // la password è obbligatoria
+  if (!password) {
+    throw new HTTPException(400, {
+      message: "Password è obbligatoria",
+    });
+  }
+
   try {
-    const { username, email, password } = await c.req.json();
-    const origin = c.req.header("Origin");
-
-    if (!origin) {
-      return c.json({ error: "Origin mancante nella registrazione" }, 400);
-    }
-
-    if (!email && !username) {
-      return c.json({ error: "Email o username sono obbligatori" }, 400);
-    }
-
-    // la password è obbligatoria
-    if (!password) {
-      return c.json({ error: "Password è obbligatoria" }, 400);
-    }
-
     // Verifica se l'applicazione è autorizzata
     const isAppAuthorized = await checkIsAppAuthorized(origin);
     if (!isAppAuthorized) {
-      return c.json({ error: "Applicazione non autorizzata" }, 403);
+      throw new HTTPException(403, {
+        message: "Applicazione non autorizzata",
+      });
     }
 
     // Verifica se l'username è disponibile
@@ -54,13 +65,17 @@ auth.post("/signup", async (c) => {
       origin
     );
     if (!isUsernameAvailable) {
-      return c.json({ error: "Username già in uso" }, 409);
+      throw new HTTPException(409, {
+        message: "Username già in uso",
+      });
     }
 
     // Verifica se l'utente esiste già
     const existingUser = await findUserByKeyReference(email, origin);
     if (existingUser) {
-      return c.json({ error: "Utente già registrato" }, 409);
+      throw new HTTPException(409, {
+        message: "Utente già registrato",
+      });
     }
 
     // Hash della password
@@ -97,66 +112,167 @@ auth.post("/signup", async (c) => {
           role: user.role,
           appId: user.appId,
           wasCreated: true,
+          wasConfirmed: false,
         } satisfies SignupUser,
       } satisfies SignupData,
       200
     );
   } catch (error) {
-    return c.json({ error: "Errore durante la registrazione" }, 500);
+    throw error;
   }
 });
 
 /**
- * Phone access
+ * sign up with email (passwordless)
+ * @param c - The context
+ * @returns The response
+ *
+ * TODO: SEND EMAIL WITH OTP
+ */
+auth.post("/email-signup", async (c) => {
+  const { username, email } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /email-signup",
+    });
+  }
+
+  try {
+    // delete expired OTPs
+    await deleteExpiredOtp();
+
+    const otp = generateOtp(6);
+    const otpExp = generateOtpExpiration(5);
+
+    await upsertUser({
+      username,
+      email,
+      appId: origin,
+      provider: "email",
+      otp,
+      otpExp,
+    });
+
+    // TODO: SEND EMAIL WITH OTP
+    console.log("E-MAIL OTP", otp);
+
+    return c.json(otpExp);
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * Confirm the OTP
  * @param c - The context
  * @returns The response
  */
-auth.post("/phone-access", async (c) => {
-  const { username, phone, refId, provider } = await c.req.json();
+auth.post("/otp-confirmation", async (c) => {
+  const { otp, email } = await c.req.json();
   const origin = c.req.header("Origin");
 
-  if (!phone || !refId || !username) {
-    return c.json(
-      { error: "Username, numero di telefono o providerId sono obbligatori" },
-      400
-    );
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /otp-confirmation",
+    });
   }
+
+  try {
+    const user = await findUserByKeyReference(email, origin);
+    if (!user) {
+      throw new HTTPException(404, {
+        message: "Utente non trovato",
+      });
+    }
+
+    if (user.otp !== otp) {
+      throw new HTTPException(400, {
+        message: "Codice OTP non valido",
+      });
+    }
+
+    if (user.otpExp && user.otpExp < Date.now()) {
+      throw new HTTPException(400, {
+        message: "Codice OTP scaduto",
+      });
+    }
+
+    return c.json({ error: false, userId: user.id });
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * Passwordless access
+ * @param c - The context
+ * @returns The response
+ */
+auth.post("/passwordless", async (c) => {
+  const { username, email, phone, refId, userId, provider } =
+    await c.req.json();
+  const origin = c.req.header("Origin");
+
+  const isEmail = !!email;
+  const isPhone = !!phone;
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel signin" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /passwordless",
+    });
   }
 
-  // Crea il nuovo utente
-  const user = await upsertUser({
-    username,
-    phone,
-    refId,
-    appId: origin,
-    provider,
-  });
+  // username must be provided and one of email or phone must be provided
+  if (!username || (!isEmail && !isPhone)) {
+    throw new HTTPException(400, {
+      message: isEmail
+        ? "Username e email sono obbligatori"
+        : "Username e numero di telefono sono obbligatori",
+    });
+  }
 
-  const { accessToken, refreshToken, refreshTokenExpiration } =
-    await generateAccessAndRefreshTokens(c, user);
+  try {
+    // Crea il nuovo utente
+    const user = await upsertUser({
+      id: userId || undefined,
+      username,
+      email,
+      phone,
+      refId,
+      appId: origin,
+      provider,
+      otp: undefined, // remove otp and otpExp from the user
+      otpExp: 0, // remove otp and otpExp from the user
+    });
 
-  return c.json(
-    {
-      accessToken,
-      refreshToken,
-      refreshTokenExpiration,
-      user: {
-        id: user.id,
-        username: user.username,
-        slug: user.slug,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        refId: user.refId,
-        appId: user.appId,
-        wasCreated: user.wasCreated,
-      } satisfies SignupUser,
-    } satisfies SignupData,
-    user.wasCreated ? 201 : 200
-  );
+    const { accessToken, refreshToken, refreshTokenExpiration } =
+      await generateAccessAndRefreshTokens(c, user);
+
+    return c.json(
+      {
+        accessToken,
+        refreshToken,
+        refreshTokenExpiration,
+        user: {
+          id: user.id,
+          username: user.username,
+          slug: user.slug,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          refId: user.refId,
+          appId: user.appId,
+          wasCreated: user.wasCreated,
+          wasConfirmed: user.wasConfirmed,
+        } satisfies SignupUser,
+      } satisfies SignupData,
+      user.wasCreated ? 201 : 200
+    );
+  } catch (error) {
+    throw error;
+  }
 });
 
 /**
@@ -169,41 +285,63 @@ auth.post("/login", async (c) => {
   const origin = c.req.header("Origin");
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel login" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /login",
+    });
   }
 
-  const user = await findUserByKeyReference(username || email || phone, origin);
-  if (!user) {
-    return c.json({ error: "Credenziali non valide" }, 401);
+  try {
+    const user = await findUserByKeyReference(
+      username || email || phone,
+      origin
+    );
+
+    if (!user) {
+      throw new HTTPException(404, {
+        message: "Credenziali non valide",
+      });
+    }
+
+    if (!user.password) {
+      throw new HTTPException(404, {
+        message: "Credenziali non valide",
+      });
+    }
+
+    const isValidPassword = await Bun.password.verify(password, user.password);
+
+    if (!isValidPassword) {
+      throw new HTTPException(404, {
+        message: "Credenziali non valide",
+      });
+    }
+
+    console.log("Generating tokens for user:", user.id, "from origin:", origin);
+    const { accessToken, refreshToken, refreshTokenExpiration } =
+      await generateAccessAndRefreshTokens(c, user);
+
+    return c.json(
+      {
+        accessToken,
+        refreshToken,
+        refreshTokenExpiration,
+        user: {
+          id: user.id,
+          username: user.username,
+          slug: user.slug,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          appId: user.appId,
+          wasCreated: false,
+          wasConfirmed: false,
+        } satisfies SignupUser,
+      } satisfies SignupData,
+      200
+    );
+  } catch (error) {
+    throw error;
   }
-
-  const isValidPassword = await Bun.password.verify(password, user.password);
-  if (!isValidPassword) {
-    return c.json({ error: "Credenziali non valide" }, 401);
-  }
-
-  console.log("Generating tokens for user:", user.id, "from origin:", origin);
-  const { accessToken, refreshToken, refreshTokenExpiration } =
-    await generateAccessAndRefreshTokens(c, user);
-
-  return c.json(
-    {
-      accessToken,
-      refreshToken,
-      refreshTokenExpiration,
-      user: {
-        id: user.id,
-        username: user.username,
-        slug: user.slug,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        appId: user.appId,
-        wasCreated: false,
-      } satisfies SignupUser,
-    } satisfies SignupData,
-    200
-  );
 });
 
 // Refresh token
@@ -212,22 +350,29 @@ auth.post("/refresh", async (c) => {
   let { refreshToken, userId } = await c.req.json();
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel refresh" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /refresh",
+    });
   }
 
+  // token can be revoked if userId is provided
   const isRevocable = userId ? true : false;
 
   if (userId) {
     const storedToken = await findRefreshTokenByUserId(userId, origin);
     if (!storedToken) {
-      return c.json({ error: "Refresh token non valido o scaduto" }, 401);
+      throw new HTTPException(404, {
+        message: "Refresh token non valido o scaduto",
+      });
     }
 
     refreshToken = storedToken.token;
   }
 
   if (!refreshToken) {
-    return c.json({ error: "Refresh token non valido o scaduto" }, 401);
+    throw new HTTPException(404, {
+      message: "Refresh token non valido o scaduto",
+    });
   }
 
   try {
@@ -239,16 +384,17 @@ auth.post("/refresh", async (c) => {
 
     // Verifica che il token sia per l'applicazione corretta e che l'utente sia lo stesso
     if (payload.appId !== origin || (userId && payload.userId !== userId)) {
-      return c.json(
-        { error: "Refresh token non valido per questa applicazione" },
-        401
-      );
+      throw new HTTPException(404, {
+        message: "Refresh token non valido per questa applicazione",
+      });
     }
 
     // Ottieni l'utente
     const user = await findUserById(payload.userId);
     if (!user) {
-      return c.json({ error: "Utente non trovato" }, 401);
+      throw new HTTPException(404, {
+        message: "Utente non trovato",
+      });
     }
 
     // Genera nuovi token
@@ -265,21 +411,24 @@ auth.post("/refresh", async (c) => {
       refreshToken: !isRevocable ? newRefreshToken : "",
     });
   } catch (error) {
-    console.error("Errore nella verifica del refresh token:", error);
-    return c.json({ error: "Refresh token non valido o scaduto" }, 401);
+    throw error;
   }
 });
 
-// Logout
+/**
+ * logout the user by removing the refreshToken and userId cookies
+ */
 auth.post("/logout", async (c) => {
+  const { refreshToken, userId } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /logout",
+    });
+  }
+
   try {
-    const { refreshToken, userId } = await c.req.json();
-    const origin = c.req.header("Origin");
-
-    if (!origin) {
-      return c.json({ error: "Origin mancante nel logout" }, 400);
-    }
-
     if (userId) {
       await deleteRefreshTokenByUserId(userId, origin);
     }
@@ -288,63 +437,105 @@ auth.post("/logout", async (c) => {
       await deleteRefreshToken(refreshToken, origin);
     }
 
-    return c.json({ success: true });
+    return c.json({ error: false });
   } catch (error) {
-    console.error("Errore durante il logout:", error);
-    return c.json({ success: false });
+    throw error;
   }
 });
 
-// check if username + phone is acceptable
-// true: username + phone exists or false: username + phone does not exist
-// false: username has different phone
-auth.post("/check-username-phone", async (c) => {
+// check if username + phone or username + email is acceptable
+// true: username + phone or username + email exists or false: username + phone or username + email does not exist
+// false: username has different phone or email
+auth.post("/check-username", async (c) => {
+  const { username, phone, email } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  console.log("username", username);
+  console.log("phone", phone);
+  console.log("email", email);
+  console.log("origin", origin);
+  console.log("------- CHECK USERNAME --------");
+
+  const isCheckingPhone = !!phone;
+  const isCheckingEmail = !!email;
+
+  if (!origin) {
+    throw new HTTPException(500, {
+      message: "Origin mancante nella chiamata: /check-username",
+    });
+  }
+
   try {
-    const { username, phone } = await c.req.json();
-    const origin = c.req.header("Origin");
+    let errorMessage = isCheckingPhone
+      ? "Numero di telefono già in uso"
+      : isCheckingEmail
+      ? "Indirizzo E-mail già in uso"
+      : "Username già in uso";
 
-    if (!origin) {
-      return c.json(
-        { error: "Origin mancante nel check-username-phone-ok" },
-        500
-      );
-    }
+    // check if phone or email is already in use
+    const userByPhone = isCheckingPhone
+      ? await findUserByKeyReference(phone, origin)
+      : null;
+    const userByEmail = isCheckingEmail
+      ? await findUserByKeyReference(email, origin)
+      : null;
 
-    // check if phone is already in use
-    const userByPhone = await findUserByKeyReference(phone, origin);
+    const userByReference = userByPhone || userByEmail;
 
-    // if user by phone is not found
-    if (!userByPhone) {
+    console.log("userByReference", userByReference);
+
+    // if user by phone or email is not found
+    if (!userByReference) {
       // check if username is already in use
       const userByUsername = await findUserByKeyReference(username, origin);
 
-      // if username is already in use and phone is different, return false
-      if (
-        userByUsername &&
-        userByUsername.phone &&
-        userByUsername.phone !== phone
-      ) {
-        return c.json(
-          { ok: false, error: "Username o numero di telefono già in uso" },
-          200
-        );
+      console.log("userByUsername", userByUsername);
+
+      // if username is already in use and if isCheckingPhone is true, check if phone is different
+      // if isCheckingEmail is true, check if email is different
+      // if isCheckingPhone and isCheckingEmail are true, check if phone and email are different
+      // if isCheckingPhone and isCheckingEmail are false, return false
+      // if isCheckingPhone and isCheckingEmail are true, return false
+      // if isCheckingPhone and isCheckingEmail are false, return false
+      if (userByUsername) {
+        if (isCheckingPhone && userByUsername.phone !== phone) {
+          throw new HTTPException(409, {
+            message: errorMessage,
+          });
+        }
+
+        if (isCheckingEmail && userByUsername.email !== email) {
+          throw new HTTPException(409, {
+            message: errorMessage,
+          });
+        }
       }
 
-      // if phone is not in use and username is not in use, return true
-      return c.json({ ok: true });
+      // if phone or email is not in use and username is not in use, return true
+      return c.json({ error: false }, 200);
     }
 
     // if user by phone is found, check if phone and username are the same
-    if (userByPhone.phone === phone && userByPhone.username === username) {
-      return c.json({ ok: true });
+    if (
+      userByPhone &&
+      userByPhone.phone === phone &&
+      userByPhone.username === username
+    ) {
+      return c.json({ error: false }, 200);
     }
 
-    return c.json(
-      { ok: false, error: "Username o numero di telefono già in uso" },
-      200
-    );
+    // if user by email is found, check if email and username are the same
+    if (
+      userByEmail &&
+      userByEmail.email === email &&
+      userByEmail.username === username
+    ) {
+      return c.json({ error: false }, 200);
+    }
+
+    return c.json({ error: true, message: errorMessage }, 409);
   } catch (error) {
-    return c.json({ error: "Errore durante il check-username-phone-ok" }, 500);
+    throw error;
   }
 });
 
@@ -354,24 +545,31 @@ auth.post("/delete-user", async (c) => {
   const origin = c.req.header("Origin");
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel delete-user" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /delete-user",
+    });
   }
 
-  // check if user exists (get user by id)
-  const user = await findUserById(userId);
-  if (!user) {
-    return c.json({ error: "Utente non trovato" }, 404);
-  }
+  try {
+    // check if user exists (get user by id)
+    const user = await findUserById(userId);
+    if (!user) {
+      throw new HTTPException(404, {
+        message: "Utente non trovato",
+      });
+    }
 
-  // delete user
-  const isDeleted = await deleteUserById(userId);
-  if (!isDeleted) {
-    return c.json(
-      { error: "Errore durante la cancellazione dell'utente" },
-      500
-    );
-  }
+    // delete user
+    const isDeleted = await deleteUserById(userId);
+    if (!isDeleted) {
+      throw new HTTPException(500, {
+        message: "Errore durante la cancellazione dell'utente",
+      });
+    }
 
-  return c.json({ success: true, userId, refId: user.refId });
+    return c.json({ error: false, userId, refId: user.refId });
+  } catch (error) {
+    throw error;
+  }
 });
 export default auth;

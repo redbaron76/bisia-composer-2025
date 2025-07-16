@@ -1,17 +1,18 @@
 import { initApp, optionsMiddleware } from "@/middleware";
 
+import type { AppContext } from "@/types";
 import { Hono } from "hono";
-import type { Variables } from "@/types";
 import auth from "@/routes/auth";
 import { cors } from "hono/cors";
 import { env } from "@/env";
+import { handleException } from "@/middleware/error";
 import { logger } from "hono/logger";
 
 // inizializzo l'app e imposto le opzioni per ogni app
 const { allowedOrigins, appOptionsMap } = await initApp();
 
 // creo l'app
-const app = new Hono<{ Variables: Variables }>();
+const app = new Hono<AppContext>();
 
 // middleware per settare le opzioni dell'app
 app.use("*", optionsMiddleware(appOptionsMap));
@@ -31,6 +32,9 @@ app.use(
 
 // middleware per loggare le richieste
 app.use("*", logger());
+
+// middleware per gestire gli errori
+app.onError(handleException);
 
 // Monta le rotte di autenticazione
 app.route("/api/auth", auth);

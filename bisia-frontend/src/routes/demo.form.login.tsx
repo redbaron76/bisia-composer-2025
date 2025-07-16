@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useAppForm } from "@/hooks/demo.form";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/AuthStore";
+import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 export const Route = createFileRoute("/demo/form/login")({
@@ -19,6 +20,11 @@ function LoginForm() {
       error: state.error,
     }))
   );
+
+  useEffect(() => {
+    console.log("message", message);
+    console.log("error", error);
+  }, [message, error]);
 
   const form = useAppForm({
     defaultValues: {
@@ -65,8 +71,11 @@ function LoginForm() {
           {isAuthenticated ? (
             <div className="flex gap-4 justify-between">
               <div className="flex flex-col gap-4">
-                {message && <div className="text-green-500">{message}</div>}
-                {error && <div className="text-red-500">{error}</div>}
+                {error ? (
+                  <div className="text-red-500">{message}</div>
+                ) : (
+                  <div className="text-green-500">{message}</div>
+                )}
                 <div>
                   <Button
                     type="button"
@@ -92,8 +101,11 @@ function LoginForm() {
           ) : (
             <div className="flex gap-4 justify-between">
               <div className="flex flex-col gap-4">
-                {message && <div className="text-green-500">{message}</div>}
-                {error && <div className="text-red-500">{error}</div>}
+                {error ? (
+                  <div className="text-red-500">{message}</div>
+                ) : (
+                  <div className="text-green-500">{message}</div>
+                )}
               </div>
             </div>
           )}

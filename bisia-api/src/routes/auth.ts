@@ -1,15 +1,17 @@
 import type {
-  CheckUsernamePhone,
+  CheckUsername,
   DeleteUser,
+  OtpResponse,
   RefreshToken,
   Role,
   SignupData,
 } from "@/types/user";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
+import { HTTPException } from "hono/http-exception";
 import { Hono } from "hono";
+import { callAuthApi } from "@/api/auth";
 import { log } from "@/libs/tools";
-import { postFetcher } from "@/libs/fetcher";
 import { upsertUser } from "@/api/user";
 
 const auth = new Hono();
@@ -18,20 +20,26 @@ auth.post("/signup", async (c) => {
   const { username, email, password } = await c.req.json();
   const origin = c.req.header("Origin");
 
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /signup",
+    });
+  }
+
   if (!username && !email) {
-    return c.json({ error: "Username o email sono obbligatori" }, 400);
+    throw new HTTPException(400, {
+      message: "Username o email sono obbligatori",
+    });
   }
 
   if (!password) {
-    return c.json({ error: "Password è obbligatoria" }, 400);
-  }
-
-  if (!origin) {
-    return c.json({ error: "Origin mancante nella registrazione" }, 400);
+    throw new HTTPException(400, {
+      message: "Password è obbligatoria",
+    });
   }
 
   try {
-    const authData = await postFetcher<SignupData>(
+    const authData = await callAuthApi<SignupData>(
       "/auth/signup",
       { name: username, email, password },
       { origin }
@@ -64,31 +72,112 @@ auth.post("/signup", async (c) => {
       user: authData.user,
     });
   } catch (error) {
-    return c.json({ error: "Errore nella registrazione 2" }, 500);
+    throw error;
   }
 });
 
-auth.post("/phone-access", async (c) => {
-  const { username, phone, refId, provider } = await c.req.json();
+/**
+ * sign up with email (passwordless)
+ * return otpExp
+ */
+auth.post("/email-signup", async (c) => {
+  const { username, email } = await c.req.json();
   const origin = c.req.header("Origin");
 
-  if (!username || !phone || !refId) {
-    return c.json(
-      { error: "Username, numero di telefono o providerId sono obbligatori" },
-      400
-    );
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /email-signup",
+    });
   }
 
-  if (!origin) {
-    return c.json({ error: "Origin mancante nel signin" }, 400);
+  if (!email) {
+    throw new HTTPException(400, {
+      message: "Email è obbligatoria",
+    });
   }
 
   try {
-    const authData = await postFetcher<SignupData>(
-      "/auth/phone-access",
-      { username, phone, refId, provider },
+    const authData = await callAuthApi<number>(
+      "/auth/email-signup",
+      { username, email },
       { origin }
     );
+
+    return c.json(authData);
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * Confirm the OTP
+ * @param c - The context
+ * @returns The response
+ */
+auth.post("/otp-confirmation", async (c) => {
+  const { otp, email } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /otp-confirmation",
+    });
+  }
+
+  if (!email) {
+    throw new HTTPException(400, {
+      message: "Indirizzo email è obbligatorio",
+    });
+  }
+
+  try {
+    const authData = await callAuthApi<OtpResponse>(
+      "/auth/otp-confirmation",
+      { otp, email },
+      { origin }
+    );
+
+    return c.json(authData);
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * sign in with phone or email (passwordless)
+ * return accessToken, refreshToken, user and message
+ */
+auth.post("/passwordless", async (c) => {
+  const { username, email, phone, refId, userId, provider } =
+    await c.req.json();
+  const origin = c.req.header("Origin");
+
+  const isEmail = !!email;
+  const isPhone = !!phone;
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /passwordless",
+    });
+  }
+
+  // username must be provided and one of email or phone must be provided
+  if (!username || (!isEmail && !isPhone)) {
+    throw new HTTPException(400, {
+      message: isEmail
+        ? "Username e email sono obbligatori"
+        : "Username e numero di telefono sono obbligatori",
+    });
+  }
+
+  try {
+    const authData = await callAuthApi<SignupData>(
+      "/auth/passwordless",
+      { username, email, phone, refId, userId, provider },
+      { origin }
+    );
+
+    console.log("authData", authData);
 
     if (authData.refreshToken) {
       log(authData.refreshToken, "refresh token cookie set with value");
@@ -115,6 +204,12 @@ auth.post("/phone-access", async (c) => {
 
     log(authData, "authData");
 
+    const forceCreate = isPhone
+      ? authData.user.wasCreated
+      : isEmail
+      ? authData.user.wasCreated && authData.user.wasConfirmed
+      : false;
+
     // Create a new user in the database
     await upsertUser(
       {
@@ -127,7 +222,7 @@ auth.post("/phone-access", async (c) => {
         role: authData.user.role as Role,
         isDisabled: false,
       },
-      authData.user.wasCreated // force create user
+      forceCreate // force create user
     );
 
     return c.json({
@@ -136,30 +231,35 @@ auth.post("/phone-access", async (c) => {
       user: authData.user,
     });
   } catch (error) {
-    return c.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      500
-    );
+    throw error;
   }
 });
 
+/**
+ * login with email and password
+ * return accessToken, refreshToken, user and message
+ */
 auth.post("/login", async (c) => {
   const { email, password } = await c.req.json();
   const origin = c.req.header("Origin");
 
-  if (!email || !password) {
-    return c.json({ error: "Email e password sono obbligatori" }, 400);
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /login",
+    });
   }
 
-  if (!origin) {
-    return c.json({ error: "Origin mancante nella login" }, 400);
+  if (!email || !password) {
+    throw new HTTPException(400, {
+      message: "Email e password sono obbligatori",
+    });
   }
 
   try {
-    const authData = await postFetcher<SignupData>(
+    const authData = await callAuthApi<SignupData>(
       "/auth/login",
       { email, password },
-      { origin, throwOnError: false }
+      { origin }
     );
 
     if (authData.refreshToken) {
@@ -185,23 +285,27 @@ auth.post("/login", async (c) => {
     }
 
     return c.json({
+      error: false,
       message: "Accesso effettuato con successo",
       accessToken: authData.accessToken,
       user: authData.user,
     });
-  } catch (error: unknown) {
-    return c.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      500
-    );
+  } catch (error) {
+    throw error;
   }
 });
 
+/**
+ * refresh the token
+ * return accessToken
+ */
 auth.post("/refresh", async (c) => {
   const origin = c.req.header("Origin");
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel refresh" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /refresh",
+    });
   }
 
   const refreshToken = getCookie(c, "refreshToken");
@@ -211,7 +315,7 @@ auth.post("/refresh", async (c) => {
   log(userId, "bisia-api userId");
 
   try {
-    const resp = await postFetcher<RefreshToken>(
+    const resp = await callAuthApi<RefreshToken>(
       "/auth/refresh",
       {
         refreshToken,
@@ -224,17 +328,22 @@ auth.post("/refresh", async (c) => {
 
     return c.json({ accessToken: resp.accessToken });
   } catch (error) {
-    return c.json({ error: "Errore nel refresh del token" }, 500);
+    throw error;
   }
 });
 
+/**
+ * logout the user by removing the refreshToken and userId cookies
+ */
 auth.post("/logout", async (c) => {
   const origin = c.req.header("Origin");
 
   log(origin, "bisia-api origin");
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel logout" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /logout",
+    });
   }
 
   const refreshToken = getCookie(c, "refreshToken");
@@ -244,66 +353,102 @@ auth.post("/logout", async (c) => {
   log(userId, "bisia-api userId");
 
   try {
-    const { success } = await postFetcher<{
-      success: boolean;
+    const { error } = await callAuthApi<{
+      error: boolean;
     }>("/auth/logout", { refreshToken, userId }, { origin });
 
-    log(success, "success");
+    log(error, "error");
     log(refreshToken, "refreshToken");
     log(userId, "userId");
 
-    if (success && refreshToken) {
+    if (!error && refreshToken) {
       deleteCookie(c, "refreshToken", {
         path: "/",
         domain: new URL(origin).hostname,
       });
     }
 
-    if (success && userId) {
+    if (!error && userId) {
       deleteCookie(c, "userId", {
         path: "/",
         domain: new URL(origin).hostname,
       });
     }
 
-    return c.json({ success });
+    return c.json({ error });
   } catch (error) {
-    return c.json({ error: "Errore nel logout" }, 500);
+    throw error;
   }
 });
 
 /**
- * check if username + phone is acceptable
- * true: username + phone exists or false: username + phone does not exist
- * false: username has different phone
+ * check if username + phone or username + email is acceptable
+ * true: username + phone or username + email exists or false: username + phone or username + email does not exist
+ * false: username has different phone or email
  */
-auth.post("/check-username-phone", async (c) => {
-  const { username, phone } = await c.req.json();
+auth.post("/check-username", async (c) => {
+  const { username, phone, email } = await c.req.json();
   const origin = c.req.header("Origin");
 
+  console.log("username", username);
+  console.log("phone", phone);
+  console.log("email", email);
+  console.log("origin", origin);
+  console.log("--------------------------------");
+
   if (!origin) {
-    return c.json({ error: "Origin mancante nel check-username-phone" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nel check-username",
+    });
   }
 
-  // Esempio di utilizzo del fetcher
-  const resp = await postFetcher<CheckUsernamePhone>(
-    "/auth/check-username-phone",
-    { username, phone },
+  const resp = await callAuthApi<CheckUsername>(
+    "/auth/check-username",
+    { username, phone, email },
     { origin }
   );
 
   return c.json(resp);
 });
 
+auth.post("/confirm-otp", async (c) => {
+  const { otp, userId } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nel confirm-otp",
+    });
+  }
+
+  try {
+    const resp = await callAuthApi<SignupData>(
+      "/auth/confirm-otp",
+      { otp, userId },
+      { origin }
+    );
+
+    return c.json(resp);
+  } catch (error) {
+    throw new HTTPException(500, {
+      message: "Errore nel confirm-otp",
+    });
+  }
+});
+/**
+ * delete the user by userId and remove the refreshToken and userId cookies
+ */
 auth.post("/delete-user", async (c) => {
   const { userId } = await c.req.json();
   const origin = c.req.header("Origin");
 
   if (!origin) {
-    return c.json({ error: "Origin mancante nel delete-user" }, 400);
+    throw new HTTPException(400, {
+      message: "Origin mancante nel delete-user",
+    });
   }
 
-  const resp = await postFetcher<DeleteUser>(
+  const resp = await callAuthApi<DeleteUser>(
     "/auth/delete-user",
     { userId },
     { origin }

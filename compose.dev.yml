@@ -13,10 +13,10 @@ services:
       - auth-base
     networks:
       - auth-network
-    develop:
-      watch:
-        - action: rebuild
-          path: ./auth-api
+    volumes:
+      - ./auth-api:/app
+      - /app/node_modules
+    command: bun --watch src/index.ts
 
   auth-base:
     container_name: auth-base
@@ -47,10 +47,10 @@ services:
       - bisia-base
     networks:
       - auth-network
-    develop:
-      watch:
-        - action: rebuild
-          path: ./bisia-api
+    volumes:
+      - ./bisia-api:/app
+      - /app/node_modules
+    command: bun --watch src/index.ts
 
   bisia-base:
     container_name: bisia-base
@@ -79,10 +79,6 @@ services:
       - NODE_ENV=development
     networks:
       - auth-network
-    develop:
-      watch:
-        - action: rebuild
-          path: ./bisia-frontend
 
 networks:
   auth-network:

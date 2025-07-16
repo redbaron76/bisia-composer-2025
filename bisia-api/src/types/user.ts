@@ -16,6 +16,7 @@ export type SignupUser = {
   provider: string;
   appId: string;
   wasCreated: boolean;
+  wasConfirmed: boolean;
 };
 
 export type SignupData = {
@@ -23,6 +24,7 @@ export type SignupData = {
   refreshToken?: string;
   refreshTokenExpiration: number;
   user: SignupUser;
+  error?: string;
 };
 
 export type User = {
@@ -41,9 +43,9 @@ export type User = {
 export type CreateUser = Omit<User, "id" | "created" | "updated">;
 export type UpdateUser = Omit<User, "created" | "updated"> & { id?: string };
 
-export type CheckUsernamePhone = {
-  ok: boolean;
-  error?: string;
+export type CheckUsername = {
+  error: boolean;
+  message?: string;
 };
 
 export type DeleteUser = {
@@ -56,4 +58,21 @@ export type RefreshToken = {
   accessToken: string;
   refreshToken: string;
   refreshTokenExpiration: number;
+};
+
+export type ConfirmOtp = {
+  success: boolean;
+  userId: string;
+  refId?: string;
+};
+
+export type EmailSignin = {
+  otpExp: number;
+  refId: string;
+};
+
+export type OtpResponse = {
+  success: boolean;
+  userId: string;
+  error?: string;
 };

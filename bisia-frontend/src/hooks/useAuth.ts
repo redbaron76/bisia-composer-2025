@@ -2,12 +2,29 @@ import {
   doDeleteUser,
   doLogin,
   doLogout,
-  doPhoneIn,
+  doPasswordlessIn,
   doProtected,
 } from "@/apis/auth";
 
+import type { User } from "@/types/auth";
 import { useAuthStore } from "@/stores/AuthStore";
 import { useMutation } from "@tanstack/react-query";
+
+// Helper function to convert SignupUser to User
+const convertSignupUserToUser = (signupUser: any): User => {
+  return {
+    id: signupUser.id,
+    refId: signupUser.refId,
+    username: signupUser.username,
+    slug: signupUser.slug,
+    phone: signupUser.phone,
+    email: signupUser.email,
+    role: signupUser.role,
+    isDisabled: false, // Default value since SignupUser doesn't have this
+    created: new Date().toISOString(), // Default value since SignupUser doesn't have this
+    updated: new Date().toISOString(), // Default value since SignupUser doesn't have this
+  };
+};
 
 export const useAuth = () => {
   const logoutMutation = useMutation({
@@ -18,7 +35,7 @@ export const useAuth = () => {
         userAuth: null,
         isAuthenticated: false,
         error: undefined,
-        message: data.success
+        message: !data.error
           ? "Logout effettuato con successo"
           : "Logout fallito",
       });
@@ -28,18 +45,21 @@ export const useAuth = () => {
   const loginMutation = useMutation({
     mutationFn: doLogin,
     onSuccess: (data) => {
+      console.log("loginMutation onSuccess data", data);
+      const convertedUser = convertSignupUserToUser(data.user);
       useAuthStore.setState({
         accessToken: data.accessToken,
-        userAuth: data.user,
+        userAuth: convertedUser,
         isAuthenticated: true,
         error: undefined,
         message: "Login effettuato con successo",
       });
     },
     onError: (error) => {
+      console.log("loginMutation onError error", error);
       useAuthStore.setState({
-        error: error.message,
-        message: undefined,
+        error: true,
+        message: error.message,
       });
     },
   });
@@ -51,27 +71,28 @@ export const useAuth = () => {
         accessToken: "",
         userAuth: null,
         isAuthenticated: false,
-        error: data.success
-          ? undefined
+        error: data.success ? undefined : true,
+        message: data.success
+          ? "Utente eliminato con successo"
           : "Errore durante l'eliminazione dell'utente",
-        message: data.success ? "Utente eliminato con successo" : undefined,
       });
     },
   });
 
   const loginPhoneMutation = useMutation({
-    mutationFn: doPhoneIn,
+    mutationFn: doPasswordlessIn,
     onSuccess: (data) => {
+      const convertedUser = convertSignupUserToUser(data.user);
       useAuthStore.setState({
         accessToken: data.accessToken,
-        userAuth: data.user,
+        userAuth: convertedUser,
         isAuthenticated: true,
       });
     },
     onError: (error) => {
       useAuthStore.setState({
-        error: error.message,
-        message: undefined,
+        error: true,
+        message: error.message,
       });
     },
   });
@@ -87,8 +108,8 @@ export const useAuth = () => {
     },
     onError: (error) => {
       useAuthStore.setState({
-        error: error.message,
-        message: undefined,
+        error: true,
+        message: error.message,
       });
     },
   });

@@ -5,26 +5,38 @@ import {
 } from "firebase/auth";
 
 import {
-  OtpPhoneSchema,
+  OtpSchema,
   UsernamePhoneSchema,
-  type RefIdPhone,
+  type PasswordlessAccess,
   type UsernamePhone,
 } from "@/schemas/auth";
 import { auth } from "@/lib/firebase";
-import { doCheckUsernamePhoneOk, doPhoneIn } from "@/apis/auth";
+import { doCheckUsername, doPasswordlessIn } from "@/apis/auth";
 
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import type { UserAuth } from "@/types/auth";
+import type { ApiResponse, User } from "@/types/auth";
 import { useAppForm } from "./demo.form";
 
 type FirebaseOptions = {
-  onError?: (error: string) => void;
-  onSuccess?: (
-    userAuth: UserAuth,
-    accessToken: string,
-    message?: string
-  ) => void;
+  onError?: ({ error, message }: ApiResponse) => void;
+  onSuccess?: (userAuth: User, accessToken: string, message?: string) => void;
+};
+
+// Helper function to convert SignupUser to User
+const convertSignupUserToUser = (signupUser: any): User => {
+  return {
+    id: signupUser.id,
+    refId: signupUser.refId,
+    username: signupUser.username,
+    slug: signupUser.slug,
+    phone: signupUser.phone,
+    email: signupUser.email,
+    role: signupUser.role,
+    isDisabled: false, // Default value since SignupUser doesn't have this
+    created: new Date().toISOString(), // Default value since SignupUser doesn't have this
+    updated: new Date().toISOString(), // Default value since SignupUser doesn't have this
+  };
 };
 
 export function useFirebase({ onError, onSuccess }: FirebaseOptions) {
@@ -35,11 +47,11 @@ export function useFirebase({ onError, onSuccess }: FirebaseOptions) {
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const { mutateAsync: checkUser, isPending: isCheckingUser } = useMutation({
-    mutationFn: (data: UsernamePhone) => doCheckUsernamePhoneOk(data),
+    mutationFn: (data: UsernamePhone) => doCheckUsername(data),
   });
 
   const { mutateAsync: signupUser, isPending: signupLoading } = useMutation({
-    mutationFn: (data: RefIdPhone) => doPhoneIn(data),
+    mutationFn: (data: PasswordlessAccess) => doPasswordlessIn(data),
   });
 
   // Metodo per creare il RecaptchaVerifier
@@ -68,25 +80,25 @@ export function useFirebase({ onError, onSuccess }: FirebaseOptions) {
     phone = phone.replace(/\s/g, "");
 
     // check if username and phone are already in use
-    const { ok, error } = await checkUser({ username, phone });
+    const { error, message } = await checkUser({ username, phone });
     if (error) {
-      onError?.(error);
+      onError?.({ error, message });
       setIsSigningIn(false);
       return;
     }
 
-    if (ok) {
+    if (!error) {
       // inizializza il recaptcha
       const recaptchaVerifier = createRecaptchaVerifier();
       // resetta l'errore del form
-      onError?.("");
+      onError?.({ error: false, message: "" });
 
       signInWithPhoneNumber(auth, phone, recaptchaVerifier)
         .then((confirmation) => {
           setConfirmationResult(confirmation);
         })
         .catch((error) => {
-          onError?.(error.message);
+          onError?.({ error: true, message: error.message });
           window.grecaptcha.reset(window.recaptchaWidgetId);
         })
         .finally(() => {
@@ -127,6 +139,7 @@ export function useFirebase({ onError, onSuccess }: FirebaseOptions) {
 
           // response from doPhoneIn (/auth/phone-access)
           const { user, accessToken, message } = response;
+          const convertedUser = convertSignupUserToUser(user);
 
           // rimuovi le credenziali di signup
           signupCredentialsRef.current = null;
@@ -135,11 +148,15 @@ export function useFirebase({ onError, onSuccess }: FirebaseOptions) {
           // resetta lo stato di signing in
           setIsSigningIn(false);
           // chiama la funzione di successo
-          onSuccess?.(user, accessToken, message);
+          onSuccess?.(convertedUser, accessToken, message);
         })
         .catch((error) => {
           console.log("OTP error", error);
-          if (error) onError?.("Il codice OTP inserito non è valido");
+          if (error)
+            onError?.({
+              error: true,
+              message: "Il codice OTP inserito non è valido",
+            });
         })
         .finally(() => {
           // resetta il form
@@ -168,7 +185,7 @@ export function useFirebase({ onError, onSuccess }: FirebaseOptions) {
       otp: "",
     },
     validators: {
-      onBlur: OtpPhoneSchema,
+      onBlur: OtpSchema,
     },
     onSubmit: ({ value }) => {
       sendConfirmationCode(value.otp);

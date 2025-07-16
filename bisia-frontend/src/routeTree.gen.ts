@@ -17,6 +17,7 @@ import { Route as DemoFormSimpleImport } from './routes/demo.form.simple'
 import { Route as DemoFormSignupImport } from './routes/demo.form.signup'
 import { Route as DemoFormPhoneImport } from './routes/demo.form.phone'
 import { Route as DemoFormLoginImport } from './routes/demo.form.login'
+import { Route as DemoFormEmailImport } from './routes/demo.form.email'
 import { Route as DemoFormAddressImport } from './routes/demo.form.address'
 
 // Create/Update Routes
@@ -57,6 +58,12 @@ const DemoFormLoginRoute = DemoFormLoginImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const DemoFormEmailRoute = DemoFormEmailImport.update({
+  id: '/demo/form/email',
+  path: '/demo/form/email',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const DemoFormAddressRoute = DemoFormAddressImport.update({
   id: '/demo/form/address',
   path: '/demo/form/address',
@@ -86,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/demo/form/address'
       fullPath: '/demo/form/address'
       preLoaderRoute: typeof DemoFormAddressImport
+      parentRoute: typeof rootRoute
+    }
+    '/demo/form/email': {
+      id: '/demo/form/email'
+      path: '/demo/form/email'
+      fullPath: '/demo/form/email'
+      preLoaderRoute: typeof DemoFormEmailImport
       parentRoute: typeof rootRoute
     }
     '/demo/form/login': {
@@ -125,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
+  '/demo/form/email': typeof DemoFormEmailRoute
   '/demo/form/login': typeof DemoFormLoginRoute
   '/demo/form/phone': typeof DemoFormPhoneRoute
   '/demo/form/signup': typeof DemoFormSignupRoute
@@ -135,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
+  '/demo/form/email': typeof DemoFormEmailRoute
   '/demo/form/login': typeof DemoFormLoginRoute
   '/demo/form/phone': typeof DemoFormPhoneRoute
   '/demo/form/signup': typeof DemoFormSignupRoute
@@ -146,6 +162,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
+  '/demo/form/email': typeof DemoFormEmailRoute
   '/demo/form/login': typeof DemoFormLoginRoute
   '/demo/form/phone': typeof DemoFormPhoneRoute
   '/demo/form/signup': typeof DemoFormSignupRoute
@@ -158,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/demo/tanstack-query'
     | '/demo/form/address'
+    | '/demo/form/email'
     | '/demo/form/login'
     | '/demo/form/phone'
     | '/demo/form/signup'
@@ -167,6 +185,7 @@ export interface FileRouteTypes {
     | '/'
     | '/demo/tanstack-query'
     | '/demo/form/address'
+    | '/demo/form/email'
     | '/demo/form/login'
     | '/demo/form/phone'
     | '/demo/form/signup'
@@ -176,6 +195,7 @@ export interface FileRouteTypes {
     | '/'
     | '/demo/tanstack-query'
     | '/demo/form/address'
+    | '/demo/form/email'
     | '/demo/form/login'
     | '/demo/form/phone'
     | '/demo/form/signup'
@@ -187,6 +207,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoFormAddressRoute: typeof DemoFormAddressRoute
+  DemoFormEmailRoute: typeof DemoFormEmailRoute
   DemoFormLoginRoute: typeof DemoFormLoginRoute
   DemoFormPhoneRoute: typeof DemoFormPhoneRoute
   DemoFormSignupRoute: typeof DemoFormSignupRoute
@@ -197,6 +218,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoFormAddressRoute: DemoFormAddressRoute,
+  DemoFormEmailRoute: DemoFormEmailRoute,
   DemoFormLoginRoute: DemoFormLoginRoute,
   DemoFormPhoneRoute: DemoFormPhoneRoute,
   DemoFormSignupRoute: DemoFormSignupRoute,
@@ -216,6 +238,7 @@ export const routeTree = rootRoute
         "/",
         "/demo/tanstack-query",
         "/demo/form/address",
+        "/demo/form/email",
         "/demo/form/login",
         "/demo/form/phone",
         "/demo/form/signup",
@@ -230,6 +253,9 @@ export const routeTree = rootRoute
     },
     "/demo/form/address": {
       "filePath": "demo.form.address.tsx"
+    },
+    "/demo/form/email": {
+      "filePath": "demo.form.email.tsx"
     },
     "/demo/form/login": {
       "filePath": "demo.form.login.tsx"

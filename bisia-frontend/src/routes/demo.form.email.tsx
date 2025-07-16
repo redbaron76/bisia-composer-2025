@@ -3,16 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/AuthStore";
 import { usePasswordless } from "@/hooks/usePasswordless";
-import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-export const Route = createFileRoute("/demo/form/phone")({
-  component: PhoneForm,
+export const Route = createFileRoute("/demo/form/email")({
+  component: EmailForm,
 });
 
-function PhoneForm() {
-  const phoneRef = useRef<HTMLInputElement>(null);
-
+function EmailForm() {
   const { logoutMutation, protectedMutation, deleteUserMutation } = useAuth();
   const { isAuthenticated, message, error, setMessage, setUserAuth } =
     useAuthStore(
@@ -25,10 +22,10 @@ function PhoneForm() {
       }))
     );
 
-  const { isSigningIn, formPasswordless, formOtp, confirmOtp } =
+  const { isSigningIn, confirmOtp, formPasswordless, formOtp } =
     usePasswordless({
-      onError: (error) => {
-        setMessage(error.error, error.message);
+      onError: (response) => {
+        setMessage(response.error, response.message);
       },
       onSuccess: (userAuth, accessToken, message) => {
         setUserAuth(userAuth, accessToken, message);
@@ -42,11 +39,9 @@ function PhoneForm() {
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log("confirmOtp", confirmOtp);
             if (confirmOtp) {
               formOtp.handleSubmit();
             } else {
-              console.log("formPasswordless", formPasswordless.state);
               formPasswordless.handleSubmit();
             }
           }}
@@ -70,19 +65,8 @@ function PhoneForm() {
               <formPasswordless.AppField name="username">
                 {(field) => <field.TextField label="Nickname" />}
               </formPasswordless.AppField>
-              <formPasswordless.AppField name="phone">
-                {(field) => (
-                  <field.TextField
-                    label="Phone"
-                    inputType="tel"
-                    ref={phoneRef}
-                    onFocus={() => {
-                      if (phoneRef.current) {
-                        phoneRef.current.value = "+39";
-                      }
-                    }}
-                  />
-                )}
+              <formPasswordless.AppField name="email">
+                {(field) => <field.TextField label="Email" inputType="email" />}
               </formPasswordless.AppField>
               <formPasswordless.AppForm>
                 <formPasswordless.SubscribeButton

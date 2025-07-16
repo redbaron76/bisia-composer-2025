@@ -1,3 +1,4 @@
+import type { RefreshToken } from "@/types/auth";
 import { env } from "@/env";
 import { sleep } from "@/lib/utils";
 import { useAuthStore } from "../stores/AuthStore";
@@ -9,32 +10,27 @@ interface FetchOptions extends RequestInit {
   credentials?: RequestCredentials;
 }
 
-type RefreshResponse = {
-  accessToken?: string;
-  refreshToken?: string;
-  error?: string;
-};
-
 /**
  * Riautentica la richiesta se il token è scaduto
  * @param response - La risposta della richiesta
  * @returns La risposta della richiesta
  */
 const reAuthorizeRequest = async (response: Response): Promise<any> => {
-  const refreshResponse = await postFetcher<RefreshResponse>(
+  const refreshResponse = await postFetcher<RefreshToken>(
     `${env.VITE_API_URL}/auth/refresh`,
+    {},
     {
       credentials: "include",
     }
   );
 
-  if (!refreshResponse.accessToken && refreshResponse.error) {
-    throw new Error(refreshResponse.error);
+  if (!refreshResponse.accessToken) {
+    throw new Error("Token refresh failed");
   }
 
   useAuthStore.setState({
-    accessToken: refreshResponse.accessToken || "",
-    isAuthenticated: refreshResponse.accessToken ? true : false,
+    accessToken: refreshResponse.accessToken,
+    isAuthenticated: true,
   });
 
   const options: FetchOptions = {
@@ -73,7 +69,16 @@ const handleResponse = async (
         case 400:
         case 500:
         case 404:
-          throw new Error(resp.error);
+          // Handle different error response formats
+          if (typeof resp === "object" && resp.error) {
+            throw new Error(resp.error);
+          } else if (typeof resp === "object" && resp.message) {
+            throw new Error(resp.message);
+          } else if (typeof resp === "string") {
+            throw new Error(resp);
+          } else {
+            throw new Error(response.statusText);
+          }
         default:
           throw new Error(response.statusText);
       }
@@ -153,11 +158,18 @@ export const getFetcher = async <TResponse>(
 
 export const putFetcher = async <TResponse>(
   url: string,
+  body: any,
   options: FetchOptions = {}
 ): Promise<TResponse> => {
+  const { responseType, ...fetchOptions } = options;
+
   const response = await fetcher(url, {
     method: "PUT",
-    ...options,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    ...fetchOptions,
   });
 
   return (await handleResponse(response, options)) as TResponse;

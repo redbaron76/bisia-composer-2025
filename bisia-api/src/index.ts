@@ -4,10 +4,12 @@ import auth from "@/routes/auth";
 import { authenticateToken } from "@/middleware/auth";
 import { cors } from "hono/cors";
 import { env } from "@/env";
+import { handleException } from "./middleware/error";
 import { logger } from "hono/logger";
 
 const app = new Hono();
 
+// cors
 app.use(
   "*",
   cors({
@@ -20,10 +22,16 @@ app.use(
   })
 );
 
+// logger
 app.use("*", logger());
 
+// handle exceptions
+app.onError(handleException);
+
+// routes
 app.route("/api/auth", auth);
 
+// root route
 app.get("/", (c) => {
   return c.text("Hello World");
 });

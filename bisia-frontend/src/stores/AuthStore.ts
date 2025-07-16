@@ -1,24 +1,19 @@
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { UserAuth } from "@/types/auth";
+import type { User } from "@/types/auth";
 import { create } from "zustand";
 
 export type AuthProps = {
   isAuthenticated: boolean;
   accessToken: string | null;
-  userAuth: UserAuth | null;
-  error?: string;
+  userAuth: User | null;
+  error?: boolean;
   message?: string;
 };
 
 export interface AuthStore extends AuthProps {
-  setMessage: (message: string) => void;
-  setErrorMessage: (error: string) => void;
-  setUserAuth: (
-    userAuth: UserAuth,
-    accessToken: string,
-    message?: string
-  ) => void;
+  setMessage: (error: boolean, message?: string) => void;
+  setUserAuth: (userAuth: User, accessToken: string, message?: string) => void;
   setAuth: (key: keyof AuthProps, value: AuthProps[typeof key]) => void;
 }
 
@@ -30,17 +25,14 @@ export const useAuthStore = create<AuthStore>()(
       userAuth: null,
       confirmationResult: null,
 
-      setMessage: (message: string) => {
-        set({ message, error: undefined });
+      setMessage: (error: boolean, message?: string) => {
+        console.log("setMessage", error, message);
+        set({ error, message });
       },
 
-      setErrorMessage: (error: string) => {
-        set({ error, message: undefined });
-      },
-
-      setUserAuth: (userAuth: UserAuth, accessToken, message) => {
+      setUserAuth: (userAuth: User, accessToken, message) => {
         set({
-          error: undefined,
+          error: false,
           message: message || undefined,
           isAuthenticated: true,
           userAuth,

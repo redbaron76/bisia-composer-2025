@@ -12,6 +12,8 @@ interface UserBase {
   role: Role;
   refId?: string; // id utente di FireBase
   appId: string; // Identificativo dell'applicativo
+  otp?: number;
+  otpExp?: number;
 }
 
 // Interface that requires at least one of username (and slug) or email or phone
@@ -53,8 +55,10 @@ export type SignupUser = {
   phone?: string;
   role: Role;
   refId?: string;
+  otp?: number;
   appId: string;
   wasCreated: boolean;
+  wasConfirmed: boolean;
 };
 
 export type SignupData = {
@@ -79,3 +83,11 @@ export type AppOptions = {
   accessTokenMinutesExp: number;
   refreshTokenDaysExp: number;
 };
+
+export type ErrorResponse = {
+  error: true;
+  message: string;
+  status: number;
+};
+
+export type AppContext = { Variables: Variables };

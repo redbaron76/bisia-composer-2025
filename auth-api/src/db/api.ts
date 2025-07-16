@@ -34,7 +34,7 @@ export const findUserByKeyReference = async (
   if (!provider) provider = "";
   const isEmail = key.includes("@") && key.includes(".");
   const isPhone = key.startsWith("+");
-  const isRefId = !!provider;
+  const isRefId = !!provider && provider !== "email";
   const isUsername = !isEmail && !isPhone && !isRefId;
 
   if (isUsername) key = doSlug(key) as string;
@@ -45,11 +45,18 @@ export const findUserByKeyReference = async (
     if (isPhone) filterKey = "phone";
     if (isRefId) filterKey = "refId";
 
+    console.log("filterKey", filterKey);
+    console.log("key", key);
+    console.log("appId", appId);
+    console.log("provider", provider);
+
     let filter = `(${filterKey}="${key}") && appId="${appId}"`;
 
     if (isRefId) {
       filter += ` && provider="${provider}"`;
     }
+
+    console.log("filter", filter);
 
     const user = await pb.collection("users").getFirstListItem<User>(filter);
 
@@ -222,6 +229,8 @@ export const createUser = async (userData: {
   appId: string;
   role?: string;
   provider?: string;
+  otp?: number;
+  otpExp?: number;
 }): Promise<User> => {
   try {
     const user = await pb.collection("users").create<User>({
@@ -234,6 +243,8 @@ export const createUser = async (userData: {
       appId: userData.appId,
       role: userData.role || "user",
       provider: userData.provider || undefined,
+      otp: userData.otp || undefined,
+      otpExp: userData.otpExp || undefined,
     });
     return user;
   } catch (error) {
@@ -243,6 +254,7 @@ export const createUser = async (userData: {
 };
 
 export const upsertUser = async (userData: {
+  id?: string;
   username?: string;
   email?: string;
   phone?: string;
@@ -250,8 +262,10 @@ export const upsertUser = async (userData: {
   refId?: string;
   appId: string;
   role?: string;
+  otp?: number;
+  otpExp?: number;
   provider?: string;
-}): Promise<User & { wasCreated: boolean }> => {
+}): Promise<User & { wasCreated: boolean; wasConfirmed: boolean }> => {
   try {
     const isEmail = userData.email && userData.email.includes("@");
     const isPhone = userData.phone && userData.phone.startsWith("+");
@@ -269,12 +283,15 @@ export const upsertUser = async (userData: {
       throw new Error("Invalid user data");
     }
 
-    // Try to find existing user by refId and appId
-    const existingUser = await findUserByKeyReference(
-      key,
-      userData.appId,
-      userData.provider
-    );
+    console.log("key", key);
+
+    // Try to find existing user by id or refId and appId
+    const existingUser = userData.id
+      ? await findUserById(userData.id)
+      : await findUserByKeyReference(key, userData.appId, userData.provider);
+
+    console.log("existingUser ID", existingUser?.id);
+    console.log("userData", userData);
 
     if (existingUser) {
       // Update existing user
@@ -288,12 +305,14 @@ export const upsertUser = async (userData: {
         appId: userData.appId,
         role: userData.role || "user",
         provider: userData.provider || undefined,
+        otp: userData.otp || undefined,
+        otpExp: userData.otpExp || undefined,
       });
-      return { ...user, wasCreated: false };
+      return { ...user, wasCreated: false, wasConfirmed: !!userData.id };
     } else {
       // Create new user
       const user = await createUser(userData);
-      return { ...user, wasCreated: true };
+      return { ...user, wasCreated: true, wasConfirmed: false };
     }
   } catch (error) {
     console.error("Error upserting user", error);
@@ -370,5 +389,38 @@ export const getAppOptions = async (): Promise<
   } catch (error) {
     console.log("Errore nel caricamento degli origins:", error);
     return [];
+  }
+};
+
+/**
+ * Delete expired OTPs
+ * @returns void
+ */
+export const deteleExpiredOtp = async (): Promise<void> => {
+  try {
+    const users = await pb.collection("users").getFullList<User>({
+      filter: `otpExp < ${Date.now()}`,
+    });
+    for (const user of users) {
+      await deleteOtp(user.id);
+    }
+  } catch (error) {
+    console.error("Error deleting expired OTPs", error);
+  }
+};
+
+/**
+ * Delete the OTP of a user
+ * @param userId - The id of the user
+ * @returns void
+ */
+export const deleteOtp = async (userId: string): Promise<void> => {
+  try {
+    await pb.collection("users").update<User>(userId, {
+      otp: undefined,
+      otpExp: undefined,
+    });
+  } catch (error) {
+    console.error("Error deleting OTP", error);
   }
 };
