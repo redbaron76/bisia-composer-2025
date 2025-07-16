@@ -82,7 +82,8 @@ export type EmailSignin = {
 export type OtpResponse = {
   success: boolean;
   userId: string;
-  error?: string;
+  error?: boolean;
+  message?: string;
 };
 
 // Legacy types for backward compatibility

@@ -12,7 +12,7 @@ import type {
   UsernameEmail,
   UsernameEmailOrPhone,
 } from "@/schemas/auth";
-import { getFetcher, postFetcher } from "@/lib/fetcher";
+import { getFetcher, handleApiError, postFetcher } from "@/lib/fetcher";
 
 import { deleteFirebaseUser } from "./firebase";
 import { env } from "@/env";
@@ -22,10 +22,12 @@ import { z } from "zod";
 export const doCheckUsername = async (
   data: UsernameEmailOrPhone
 ): Promise<CheckUsername> => {
-  return await postFetcher<CheckUsername>(
+  const resp = await postFetcher<CheckUsername>(
     `${env.VITE_API_URL}/auth/check-username`,
     data
   );
+
+  return handleApiError(resp, "Errore durante il controllo username");
 };
 
 export const doLogin = async (
@@ -39,11 +41,7 @@ export const doLogin = async (
     }
   );
 
-  if (resp) {
-    console.log("doLogin resp", resp);
-  }
-
-  return resp;
+  return handleApiError(resp, "Errore durante il login");
 };
 
 export const doSignUpWithEmail = async (
@@ -58,16 +56,18 @@ export const doSignUpWithEmail = async (
 export const doSendOtpWithEmail = async (
   data: OtpConfirmation
 ): Promise<OtpResponse> => {
-  return await postFetcher<OtpResponse>(
+  const resp = await postFetcher<OtpResponse>(
     `${env.VITE_API_URL}/auth/otp-confirmation`,
     data
   );
+
+  return handleApiError(resp, "Errore durante l'invio OTP");
 };
 
 export const doPasswordlessIn = async (
   data: z.infer<typeof PasswordlessAccessSchema>
 ): Promise<AuthResponse> => {
-  return await postFetcher<AuthResponse>(
+  const resp = await postFetcher<AuthResponse>(
     `${env.VITE_API_URL}/auth/passwordless`,
     {
       username: data.username,
@@ -78,12 +78,19 @@ export const doPasswordlessIn = async (
       provider: data.provider,
     }
   );
+
+  return handleApiError(resp, "Errore durante l'accesso passwordless");
 };
 
 export const doLogout = async (): Promise<ApiResponse> => {
-  return await postFetcher<ApiResponse>(`${env.VITE_API_URL}/auth/logout`, {
-    credentials: "include",
-  });
+  const resp = await postFetcher<ApiResponse>(
+    `${env.VITE_API_URL}/auth/logout`,
+    {
+      credentials: "include",
+    }
+  );
+
+  return handleApiError(resp, "Errore durante il logout");
 };
 
 export const doProtected = async (): Promise<{ message: string }> => {

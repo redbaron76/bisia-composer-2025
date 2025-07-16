@@ -11,6 +11,19 @@ interface FetchOptions extends RequestInit {
 }
 
 /**
+ * Helper per gestire gli errori nelle risposte API
+ * @param resp - La risposta dell'API
+ * @param fallbackMessage - Messaggio di fallback se non c'è un messaggio specifico
+ * @throws Error se la risposta contiene un errore
+ */
+export const handleApiError = (resp: any, fallbackMessage: string) => {
+  if (resp && resp.error === true) {
+    throw new Error(resp.message || fallbackMessage);
+  }
+  return resp;
+};
+
+/**
  * Riautentica la richiesta se il token è scaduto
  * @param response - La risposta della richiesta
  * @returns La risposta della richiesta
@@ -69,10 +82,8 @@ const handleResponse = async (
         case 400:
         case 500:
         case 404:
-          // Handle different error response formats
-          if (typeof resp === "object" && resp.error) {
-            throw new Error(resp.error);
-          } else if (typeof resp === "object" && resp.message) {
+          // Gestisce la struttura standardizzata delle risposte di errore
+          if (typeof resp === "object" && resp.error === true && resp.message) {
             throw new Error(resp.message);
           } else if (typeof resp === "string") {
             throw new Error(resp);
