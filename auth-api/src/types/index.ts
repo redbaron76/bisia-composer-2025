@@ -15,6 +15,7 @@ interface UserBase {
   otp?: number;
   otpExp?: number;
   provider?: string;
+  tmpField?: string; // Campo temporaneo per la verifica OTP (email o phone)
 }
 
 // Interface that requires at least one of username (and slug) or email or phone

@@ -1,4 +1,4 @@
-import type { RefreshToken, User } from "@/types";
+import type { RefreshToken, Role, User } from "@/types";
 
 import { doSlug } from "@/libs/tools";
 import { pb } from "@/db/conn";
@@ -51,6 +51,11 @@ export const findUserByKeyReference = async (
     console.log("provider", provider);
 
     let filter = `(${filterKey}="${key}") && appId="${appId}"`;
+
+    // If searching for email, also check tmpField
+    if (isEmail) {
+      filter = `((${filterKey}="${key}" || tmpField="${key}")) && appId="${appId}"`;
+    }
 
     if (isRefId) {
       filter += ` && provider="${provider}"`;
@@ -231,6 +236,7 @@ export const createUser = async (userData: {
   provider?: string;
   otp?: number;
   otpExp?: number;
+  tmpField?: string;
 }): Promise<User> => {
   try {
     const user = await pb.collection("users").create<User>({
@@ -245,6 +251,7 @@ export const createUser = async (userData: {
       provider: userData.provider || undefined,
       otp: userData.otp || undefined,
       otpExp: userData.otpExp || undefined,
+      tmpField: userData.tmpField || undefined,
     });
     return user;
   } catch (error) {
@@ -265,55 +272,86 @@ export const upsertUser = async (userData: {
   otp?: number;
   otpExp?: number;
   provider?: string;
+  tmpField?: string;
 }): Promise<User & { wasCreated: boolean; wasConfirmed: boolean }> => {
   try {
-    const isEmail = userData.email && userData.email.includes("@");
-    const isPhone = userData.phone && userData.phone.startsWith("+");
-    const isRefId = userData.refId && !!userData.provider;
+    // If no id is provided, create a new user with all required data
+    if (!userData.id) {
+      // Validate that all required fields are present for creation
+      if (!userData.username || !userData.appId) {
+        throw new Error("Username and appId are required for user creation");
+      }
 
-    const key = isRefId
-      ? userData.refId
-      : isEmail
-      ? userData.email
-      : isPhone
-      ? userData.phone
-      : userData.username;
+      const user = await createUser({
+        username: userData.username,
+        email: userData.email,
+        phone: userData.phone,
+        password: userData.password,
+        refId: userData.refId,
+        appId: userData.appId,
+        role: userData.role,
+        provider: userData.provider,
+        otp: userData.otp,
+        otpExp: userData.otpExp,
+        tmpField: userData.tmpField,
+      });
 
-    if (!key) {
-      throw new Error("Invalid user data");
+      return { ...user, wasCreated: true, wasConfirmed: false };
     }
 
-    console.log("key", key);
+    // If id is provided, try to update existing user or create new one
+    const existingUser = await findUserById(userData.id);
 
-    // Try to find existing user by id or refId and appId
-    const existingUser = userData.id
-      ? await findUserById(userData.id)
-      : await findUserByKeyReference(key, userData.appId, userData.provider);
+    if (!existingUser) {
+      // User not found, create new user with the provided id
+      if (!userData.username || !userData.appId) {
+        throw new Error("Username and appId are required for user creation");
+      }
 
-    console.log("existingUser ID", existingUser?.id);
-    console.log("userData", userData);
-
-    if (existingUser) {
-      // Update existing user
-      const user = await pb.collection("users").update<User>(existingUser.id, {
+      const user = await pb.collection("users").create<User>({
+        id: userData.id,
         username: userData.username,
         slug: doSlug(userData.username),
         email: userData.email,
         phone: userData.phone,
-        password: userData.password || undefined,
-        refId: userData.refId || undefined,
+        password: userData.password,
+        refId: userData.refId,
         appId: userData.appId,
         role: userData.role || "user",
-        provider: userData.provider || undefined,
-        otp: userData.otp || undefined,
-        otpExp: userData.otpExp || undefined,
+        provider: userData.provider,
+        otp: userData.otp,
+        otpExp: userData.otpExp,
+        tmpField: userData.tmpField,
       });
-      return { ...user, wasCreated: false, wasConfirmed: !!userData.id };
-    } else {
-      // Create new user
-      const user = await createUser(userData);
+
       return { ...user, wasCreated: true, wasConfirmed: false };
     }
+
+    // Build update object with only provided fields
+    const updateData: Partial<User> = {};
+
+    if (userData.username !== undefined) {
+      updateData.username = userData.username;
+      updateData.slug = doSlug(userData.username);
+    }
+    if (userData.email !== undefined) updateData.email = userData.email;
+    if (userData.phone !== undefined) updateData.phone = userData.phone;
+    if (userData.password !== undefined)
+      updateData.password = userData.password;
+    if (userData.refId !== undefined) updateData.refId = userData.refId;
+    if (userData.appId !== undefined) updateData.appId = userData.appId;
+    if (userData.role !== undefined) updateData.role = userData.role as Role;
+    if (userData.provider !== undefined)
+      updateData.provider = userData.provider;
+    if (userData.otp !== undefined) updateData.otp = userData.otp;
+    if (userData.otpExp !== undefined) updateData.otpExp = userData.otpExp;
+    if (userData.tmpField !== undefined)
+      updateData.tmpField = userData.tmpField;
+
+    const user = await pb
+      .collection("users")
+      .update<User>(userData.id, updateData);
+    return { ...user, wasCreated: false, wasConfirmed: true };
   } catch (error) {
     console.error("Error upserting user", error);
     throw error;
@@ -422,5 +460,39 @@ export const deleteOtp = async (userId: string): Promise<void> => {
     });
   } catch (error) {
     console.error("Error deleting OTP", error);
+  }
+};
+
+/**
+ * Clear temporary fields and OTP after successful confirmation
+ * @param userId - The id of the user
+ * @param appId - The appId of the user
+ * @returns void
+ */
+export const clearTemporaryFields = async (userId: string): Promise<void> => {
+  try {
+    // Try with empty strings first, if that doesn't work, we'll try removing the fields
+    await pb.collection("users").update<User>(userId, {
+      otp: "",
+      otpExp: "",
+      tmpField: "",
+    });
+    console.log("Temporary fields cleared for user:", userId);
+  } catch (error) {
+    console.error("Error clearing temporary fields", error);
+    // If the above fails, try with null values
+    try {
+      await pb.collection("users").update<User>(userId, {
+        otp: null,
+        otpExp: null,
+        tmpField: null,
+      });
+      console.log(
+        "Temporary fields cleared with null values for user:",
+        userId
+      );
+    } catch (nullError) {
+      console.error("Error clearing temporary fields with null:", nullError);
+    }
   }
 };

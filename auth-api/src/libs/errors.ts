@@ -16,7 +16,6 @@ export const ERROR_MESSAGES = {
     LOGOUT: "Origin mancante nella chiamata: /logout",
     CHECK_USERNAME: "Origin mancante nella chiamata: /check-username",
     DELETE_USER: "Origin mancante nella chiamata: /delete-user",
-    CONFIRM_OTP: "Origin mancante nella chiamata: /confirm-otp",
   },
 
   // Validation errors
@@ -63,7 +62,6 @@ export const ERROR_MESSAGES = {
   SERVER: {
     INTERNAL_ERROR: "Errore interno del backend",
     USER_DELETION_ERROR: "Errore durante la cancellazione dell'utente",
-    CONFIRM_OTP_ERROR: "Errore nel confirm-otp",
   },
 
   // Success messages

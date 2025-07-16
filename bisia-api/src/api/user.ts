@@ -55,23 +55,60 @@ export const createUser = async (userData: CreateUser): Promise<User> => {
 };
 
 export const upsertUser = async (
-  userData: UpdateUser
+  userData: Partial<UpdateUser>
 ): Promise<User & { wasCreated: boolean }> => {
   try {
-    // Try to find existing user by userId
-    const existingUser = userData.id ? await findUserById(userData.id) : null;
+    // If no id is provided, create a new user with all required data
+    if (!userData.id) {
+      // Validate that all required fields are present for creation
+      if (!userData.username || (!userData.email && !userData.phone)) {
+        throw new Error(
+          "Username e e-mail o numero di telefono sono obbligatori"
+        );
+      }
 
-    if (existingUser) {
-      // Update existing user
-      const user = await pb.collection("users").update<User>(existingUser.id, {
-        ...userData,
-      });
-      return { ...user, wasCreated: false };
-    } else {
-      // Create new user
-      const user = await createUser(userData);
+      const user = await createUser(userData as CreateUser);
       return { ...user, wasCreated: true };
     }
+
+    // If id is provided, try to update existing user or create new one
+    const existingUser = await findUserById(userData.id);
+
+    if (!existingUser) {
+      // User not found, create new user with the provided id
+      if (!userData.username || (!userData.email && !userData.phone)) {
+        throw new Error(
+          "Username e e-mail o numero di telefono sono obbligatori"
+        );
+      }
+
+      const user = await pb.collection("users").create<User>({
+        id: userData.id,
+        ...userData,
+        role: userData.role || "user",
+        isDisabled: false,
+      });
+
+      return { ...user, wasCreated: true };
+    }
+
+    // Build update object with only provided fields
+    const updateData: Partial<User> = {};
+
+    if (userData.username !== undefined)
+      updateData.username = userData.username;
+    if (userData.slug !== undefined) updateData.slug = userData.slug;
+    if (userData.email !== undefined) updateData.email = userData.email;
+    if (userData.phone !== undefined) updateData.phone = userData.phone;
+    if (userData.refId !== undefined) updateData.refId = userData.refId;
+    if (userData.role !== undefined) updateData.role = userData.role;
+    if (userData.isDisabled !== undefined)
+      updateData.isDisabled = userData.isDisabled;
+
+    const user = await pb
+      .collection("users")
+      .update<User>(userData.id, updateData);
+    return { ...user, wasCreated: false };
   } catch (error) {
     console.error(
       "Error upserting user",

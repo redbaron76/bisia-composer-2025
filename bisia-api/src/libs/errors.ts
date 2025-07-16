@@ -9,14 +9,12 @@ export const ERROR_MESSAGES = {
   MISSING_ORIGIN: {
     SIGNUP: "Origin mancante nella chiamata: /signup",
     EMAIL_SIGNUP: "Origin mancante nella chiamata: /email-signup",
-    OTP_CONFIRMATION: "Origin mancante nella chiamata: /otp-confirmation",
     PASSWORDLESS: "Origin mancante nella chiamata: /passwordless",
     LOGIN: "Origin mancante nella chiamata: /login",
     REFRESH: "Origin mancante nella chiamata: /refresh",
     LOGOUT: "Origin mancante nella chiamata: /logout",
     CHECK_USERNAME: "Origin mancante nel check-username",
     DELETE_USER: "Origin mancante nel delete-user",
-    CONFIRM_OTP: "Origin mancante nel confirm-otp",
   },
 
   // Server errors

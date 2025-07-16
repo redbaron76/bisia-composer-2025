@@ -127,7 +127,8 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
         // send the OTP to the phone
         let authUser = null;
         if (isPhone) authUser = await sendOtpWithPhone(code);
-        if (isEmail) authUser = await sendOtpWithEmail({ otp: code, email });
+        if (isEmail)
+          authUser = await sendOtpWithEmail({ otp: code, email, username });
 
         if (authUser) {
           const refId = isPhone ? (authUser as FirebaseUser).uid : undefined;

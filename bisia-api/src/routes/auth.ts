@@ -185,8 +185,6 @@ auth.post("/passwordless", async (c) => {
       { origin }
     );
 
-    console.log("authData", authData);
-
     if (authData.refreshToken) {
       log(authData.refreshToken, "refresh token cookie set with value");
 
@@ -220,21 +218,29 @@ auth.post("/passwordless", async (c) => {
       wasCreated || (wasConfirmed && userProvider === "email");
 
     // Create a new user in the database
-    await upsertUser({
-      id: authData.user.id,
-      refId: authData.user.refId,
-      username: authData.user.username,
-      slug: authData.user.slug,
-      phone: authData.user.phone,
-      email: authData.user.email,
-      role: authData.user.role as Role,
-      isDisabled: false,
-    });
 
     if (createFirstProfile) {
+      await upsertUser({
+        id: authData.user.id,
+        refId: authData.user.refId,
+        username: authData.user.username,
+        slug: authData.user.slug,
+        phone: authData.user.phone,
+        email: authData.user.email,
+        role: authData.user.role as Role,
+        isDisabled: false,
+      });
+
       await upsertProfile({
         id: authData.user.id,
         userId: authData.user.id,
+      });
+    } else {
+      // aggiorno email e phone
+      await upsertUser({
+        id: authData.user.id,
+        email,
+        phone,
       });
     }
 
@@ -424,30 +430,6 @@ auth.post("/check-username", async (c) => {
   return c.json(resp);
 });
 
-auth.post("/confirm-otp", async (c) => {
-  const { otp, userId } = await c.req.json();
-  const origin = c.req.header("Origin");
-
-  if (!origin) {
-    throw new HTTPException(400, {
-      message: ERROR_MESSAGES.MISSING_ORIGIN.CONFIRM_OTP,
-    });
-  }
-
-  try {
-    const resp = await callAuthApi<SignupData>(
-      "/auth/confirm-otp",
-      { otp, userId },
-      { origin }
-    );
-
-    return c.json(resp);
-  } catch (error) {
-    throw new HTTPException(500, {
-      message: ERROR_MESSAGES.SERVER.CONFIRM_OTP_ERROR,
-    });
-  }
-});
 /**
  * delete the user by userId and remove the refreshToken and userId cookies
  */

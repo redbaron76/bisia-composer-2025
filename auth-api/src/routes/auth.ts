@@ -11,6 +11,7 @@ import {
   findUserById,
   findUserByKeyReference,
   upsertUser,
+  clearTemporaryFields,
 } from "@/db/api";
 
 import { Hono } from "hono";
@@ -147,14 +148,23 @@ auth.post("/email-signup", async (c) => {
     const otp = generateOtp(6);
     const otpExp = generateOtpExpiration(5);
 
+    // Try to find existing user by username (not by email to avoid conflicts)
+    const existingUser = await findUserByKeyReference(username, origin);
+
+    console.log("Email signup - existingUser:", existingUser?.id);
+    console.log("Email signup - saving email in tmpField:", email);
+
     await upsertUser({
+      id: existingUser?.id, // Use existing user ID if found
       username,
-      email,
+      tmpField: email, // Save new email or phone temporarily
       appId: origin,
       provider: "email",
       otp,
       otpExp,
     });
+
+    console.log("Email signup - user updated with tmpField");
 
     // TODO: SEND EMAIL WITH OTP
     console.log("E-MAIL OTP", otp);
@@ -171,8 +181,10 @@ auth.post("/email-signup", async (c) => {
  * @returns The response
  */
 auth.post("/otp-confirmation", async (c) => {
-  const { otp, email } = await c.req.json();
+  const { otp, email, username } = await c.req.json();
   const origin = c.req.header("Origin");
+
+  console.log("OTP confirmation - received data:", { otp, email, username });
 
   if (!origin) {
     throw new HTTPException(400, {
@@ -181,7 +193,26 @@ auth.post("/otp-confirmation", async (c) => {
   }
 
   try {
-    const user = await findUserByKeyReference(email, origin);
+    // Try to find user by username first (more reliable), then by email
+    let user = username ? await findUserByKeyReference(username, origin) : null;
+    console.log(
+      "OTP confirmation - searching by username:",
+      username,
+      "result:",
+      user?.id
+    );
+
+    // If username search failed, try to find by email
+    if (!user && email) {
+      user = await findUserByKeyReference(email, origin);
+      console.log(
+        "OTP confirmation - searching by email:",
+        email,
+        "result:",
+        user?.id
+      );
+    }
+
     if (!user) {
       throw new HTTPException(404, {
         message: "Utente non trovato",
@@ -199,6 +230,25 @@ auth.post("/otp-confirmation", async (c) => {
         message: "Codice OTP scaduto",
       });
     }
+
+    console.log("User found:", user.id);
+    console.log("User tmpField:", user.tmpField);
+    console.log("User current email:", user.email);
+    console.log("Requested email:", email);
+
+    // If user has tmpField, update the actual email
+    if (user.tmpField) {
+      console.log("Updating email from tmpField:", user.tmpField);
+      await upsertUser({
+        id: user.id,
+        appId: origin,
+        email: user.tmpField, // Update actual email with tmpField
+      });
+      console.log("Email updated successfully");
+    }
+
+    // Always clear temporary fields and OTP
+    await clearTemporaryFields(user.id);
 
     return c.json({ error: false, userId: user.id });
   } catch (error) {
@@ -236,17 +286,60 @@ auth.post("/passwordless", async (c) => {
 
   try {
     // Crea il nuovo utente
-    const user = await upsertUser({
-      id: userId || undefined,
+    // Modifica in /passwordless
+    // Cerca l'utente esistente
+    const existingUser = userId
+      ? await findUserById(userId)
+      : await findUserByKeyReference(username, origin);
+    let upsertData: any = {
+      id: userId || existingUser?.id,
       username,
-      email,
-      phone,
-      refId,
       appId: origin,
       provider,
-      otp: undefined, // remove otp and otpExp from the user
-      otpExp: 0, // remove otp and otpExp from the user
-    });
+      otp: undefined,
+      otpExp: undefined,
+    };
+    if (isEmail) {
+      // Se email diversa, salva in tmpField
+      if (existingUser && email && existingUser.email !== email) {
+        upsertData.tmpField = email;
+      } else {
+        upsertData.email = email;
+      }
+    }
+    if (isPhone) {
+      // Se phone diverso, salva in tmpField
+      if (existingUser && phone && existingUser.phone !== phone) {
+        upsertData.tmpField = phone;
+      } else {
+        upsertData.phone = phone;
+      }
+    }
+    if (refId) upsertData.refId = refId;
+
+    // Aggiorna o crea l'utente
+    const user = await upsertUser(upsertData);
+
+    // Se esiste tmpField e provider è phone/email, aggiorna il campo vero e svuota tmpField
+    if (user.tmpField) {
+      if (provider === "phone") {
+        await upsertUser({
+          id: user.id,
+          appId: origin,
+          phone: user.tmpField,
+          tmpField: undefined,
+        });
+        user.phone = user.tmpField;
+      } else if (provider === "email") {
+        await upsertUser({
+          id: user.id,
+          appId: origin,
+          email: user.tmpField,
+          tmpField: undefined,
+        });
+        user.email = user.tmpField;
+      }
+    }
 
     const { accessToken, refreshToken, refreshTokenExpiration } =
       await generateAccessAndRefreshTokens(c, user);
@@ -492,6 +585,14 @@ auth.post("/check-username", async (c) => {
       // if username is already in use and if isCheckingPhone is true, check if phone is different
       // if isCheckingEmail is true, check if email is different
       if (userByUsername) {
+        // ritorno subito se provider è email o phone
+        if (
+          userByUsername.provider === "email" ||
+          userByUsername.provider === "phone"
+        ) {
+          return c.json({ error: false }, 200);
+        }
+
         if (isCheckingPhone && userByUsername.phone !== phone) {
           // Se l'utente non ha un telefono o il telefono non corrisponde
           if (!userByUsername.phone) {
