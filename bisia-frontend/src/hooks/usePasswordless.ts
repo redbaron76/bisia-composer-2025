@@ -96,7 +96,6 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
       // reset the form
       formPasswordless.reset();
     } catch (error) {
-      console.log("passwordlessSignIn error", error);
       if (error instanceof Error) {
         onError?.({ error: true, message: error.message });
       } else {
