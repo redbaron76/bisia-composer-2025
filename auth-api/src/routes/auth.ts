@@ -176,15 +176,71 @@ auth.post("/email-signup", async (c) => {
 });
 
 /**
+ * sign up with phone (passwordless)
+ * @param c - The context
+ * @returns The response
+ *
+ * TODO: SEND SMS WITH OTP
+ */
+auth.post("/phone-signup", async (c) => {
+  const { username, phone } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: ERROR_MESSAGES.MISSING_ORIGIN.EMAIL_SIGNUP, // Reuse the same error message
+    });
+  }
+
+  try {
+    // delete expired OTPs
+    await deleteExpiredOtp();
+
+    const otp = generateOtp(6);
+    const otpExp = generateOtpExpiration(5);
+
+    // Try to find existing user by username (not by phone to avoid conflicts)
+    const existingUser = await findUserByKeyReference(username, origin);
+
+    console.log("Phone signup - existingUser:", existingUser?.id);
+    console.log("Phone signup - saving phone in tmpField:", phone);
+
+    await upsertUser({
+      id: existingUser?.id, // Use existing user ID if found
+      username,
+      tmpField: phone, // Save new phone temporarily
+      appId: origin,
+      provider: "phone",
+      otp,
+      otpExp,
+    });
+
+    console.log("Phone signup - user updated with tmpField");
+
+    // TODO: SEND SMS WITH OTP
+    console.log("SMS OTP", otp);
+
+    return c.json(otpExp);
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
  * Confirm the OTP
  * @param c - The context
  * @returns The response
  */
 auth.post("/otp-confirmation", async (c) => {
-  const { otp, email, username } = await c.req.json();
+  const { otp, email, phone, username } = await c.req.json();
   const origin = c.req.header("Origin");
 
-  console.log("OTP confirmation - received data:", { otp, email, username });
+  console.log("OTP confirmation - received data:", {
+    otp,
+    email,
+    phone,
+    username,
+  });
 
   if (!origin) {
     throw new HTTPException(400, {
@@ -193,7 +249,7 @@ auth.post("/otp-confirmation", async (c) => {
   }
 
   try {
-    // Try to find user by username first (more reliable), then by email
+    // Try to find user by username first (more reliable), then by email or phone
     let user = username ? await findUserByKeyReference(username, origin) : null;
     console.log(
       "OTP confirmation - searching by username:",
@@ -202,12 +258,22 @@ auth.post("/otp-confirmation", async (c) => {
       user?.id
     );
 
-    // If username search failed, try to find by email
+    // If username search failed, try to find by email or phone
     if (!user && email) {
       user = await findUserByKeyReference(email, origin);
       console.log(
         "OTP confirmation - searching by email:",
         email,
+        "result:",
+        user?.id
+      );
+    }
+
+    if (!user && phone) {
+      user = await findUserByKeyReference(phone, origin);
+      console.log(
+        "OTP confirmation - searching by phone:",
+        phone,
         "result:",
         user?.id
       );
@@ -234,17 +300,31 @@ auth.post("/otp-confirmation", async (c) => {
     console.log("User found:", user.id);
     console.log("User tmpField:", user.tmpField);
     console.log("User current email:", user.email);
+    console.log("User current phone:", user.phone);
     console.log("Requested email:", email);
+    console.log("Requested phone:", phone);
 
-    // If user has tmpField, update the actual email
+    // If user has tmpField, update the appropriate field based on the request
     if (user.tmpField) {
-      console.log("Updating email from tmpField:", user.tmpField);
-      await upsertUser({
-        id: user.id,
-        appId: origin,
-        email: user.tmpField, // Update actual email with tmpField
-      });
-      console.log("Email updated successfully");
+      if (email && user.tmpField === email) {
+        // Update email
+        console.log("Updating email from tmpField:", user.tmpField);
+        await upsertUser({
+          id: user.id,
+          appId: origin,
+          email: user.tmpField, // Update actual email with tmpField
+        });
+        console.log("Email updated successfully");
+      } else if (phone && user.tmpField === phone) {
+        // Update phone
+        console.log("Updating phone from tmpField:", user.tmpField);
+        await upsertUser({
+          id: user.id,
+          appId: origin,
+          phone: user.tmpField, // Update actual phone with tmpField
+        });
+        console.log("Phone updated successfully");
+      }
     }
 
     // Always clear temporary fields and OTP
@@ -308,9 +388,10 @@ auth.post("/passwordless", async (c) => {
       }
     }
     if (isPhone) {
-      // Se phone diverso, salva in tmpField
+      // Se phone diverso, salva in tmpField per Firebase
       if (existingUser && phone && existingUser.phone !== phone) {
         upsertData.tmpField = phone;
+        // Don't update phone immediately, wait for Firebase confirmation
       } else {
         upsertData.phone = phone;
       }
@@ -320,24 +401,27 @@ auth.post("/passwordless", async (c) => {
     // Aggiorna o crea l'utente
     const user = await upsertUser(upsertData);
 
-    // Se esiste tmpField e provider è phone/email, aggiorna il campo vero e svuota tmpField
+    // Se esiste tmpField e provider è firebase/email, aggiorna il campo vero e svuota tmpField
     if (user.tmpField) {
-      if (provider === "phone") {
+      if (provider === "firebase") {
+        // For Firebase phone authentication, update phone from tmpField
         await upsertUser({
           id: user.id,
           appId: origin,
           phone: user.tmpField,
-          tmpField: undefined,
         });
         user.phone = user.tmpField;
+        // Clear tmpField after updating
+        await clearTemporaryFields(user.id);
       } else if (provider === "email") {
         await upsertUser({
           id: user.id,
           appId: origin,
           email: user.tmpField,
-          tmpField: undefined,
         });
         user.email = user.tmpField;
+        // Clear tmpField after updating
+        await clearTemporaryFields(user.id);
       }
     }
 
@@ -582,45 +666,29 @@ auth.post("/check-username", async (c) => {
       // check if username is already in use
       const userByUsername = await findUserByKeyReference(username, origin);
 
-      // if username is already in use and if isCheckingPhone is true, check if phone is different
-      // if isCheckingEmail is true, check if email is different
+      // if username is already in use, allow update only for email/firebase providers
       if (userByUsername) {
-        // ritorno subito se provider è email o phone
+        // Allow update only if provider is email or firebase (for phone changes)
         if (
           userByUsername.provider === "email" ||
-          userByUsername.provider === "phone"
+          userByUsername.provider === "firebase"
         ) {
           return c.json({ error: false }, 200);
         }
 
+        // For other providers, check if phone/email matches
         if (isCheckingPhone && userByUsername.phone !== phone) {
-          // Se l'utente non ha un telefono o il telefono non corrisponde
-          if (!userByUsername.phone) {
-            throw new HTTPException(409, {
-              message:
-                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
-            });
-          } else {
-            throw new HTTPException(409, {
-              message:
-                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
-            });
-          }
+          throw new HTTPException(409, {
+            message:
+              ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
+          });
         }
 
         if (isCheckingEmail && userByUsername.email !== email) {
-          // Se l'utente non ha un'email o l'email non corrisponde
-          if (!userByUsername.email) {
-            throw new HTTPException(409, {
-              message:
-                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
-            });
-          } else {
-            throw new HTTPException(409, {
-              message:
-                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
-            });
-          }
+          throw new HTTPException(409, {
+            message:
+              ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
+          });
         }
       }
 

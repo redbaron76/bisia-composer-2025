@@ -52,8 +52,8 @@ export const findUserByKeyReference = async (
 
     let filter = `(${filterKey}="${key}") && appId="${appId}"`;
 
-    // If searching for email, also check tmpField
-    if (isEmail) {
+    // If searching for email or phone, also check tmpField
+    if (isEmail || isPhone) {
       filter = `((${filterKey}="${key}" || tmpField="${key}")) && appId="${appId}"`;
     }
 

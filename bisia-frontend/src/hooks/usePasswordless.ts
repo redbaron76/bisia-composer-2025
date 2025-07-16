@@ -82,7 +82,9 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
 
       // Se arriviamo qui, non ci sono errori
       if (isPhone && phone) {
+        // For phone, use Firebase authentication
         await signUpWithPhone(phone);
+        setConfirmOtp(true);
       } else if (email) {
         const otpExp = await signUpWithEmail({ username, email });
 
@@ -124,17 +126,34 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
       const isEmail = !!email;
 
       try {
-        // send the OTP to the phone
+        // send the OTP to the phone or email
         let authUser = null;
-        if (isPhone) authUser = await sendOtpWithPhone(code);
-        if (isEmail)
-          authUser = await sendOtpWithEmail({ otp: code, email, username });
+        let userId = undefined;
+        let refId = undefined;
+        let provider: "email" | "firebase" = "email";
 
-        if (authUser) {
-          const refId = isPhone ? (authUser as FirebaseUser).uid : undefined;
-          const userId = isEmail ? (authUser as OtpResponse).userId : undefined;
-          const provider = isPhone ? "firebase" : "email";
+        if (isPhone) {
+          // For phone, use Firebase authentication
+          authUser = await sendOtpWithPhone(code);
+          if (authUser) {
+            refId = (authUser as FirebaseUser).uid;
+            provider = "firebase";
+          }
+        }
+        if (isEmail) {
+          // For email, we use our OTP system
+          const otpResponse = await sendOtpWithEmail({
+            otp: code,
+            email,
+            username,
+          });
+          if (otpResponse.success) {
+            userId = otpResponse.userId;
+            provider = "email";
+          }
+        }
 
+        if (authUser || userId) {
           const response = await signupUser({
             userId,
             username,

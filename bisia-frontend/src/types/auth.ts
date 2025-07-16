@@ -93,7 +93,8 @@ export type LoginResponse = {
 
 export type OtpConfirmation = {
   otp: string;
-  email: string;
+  email?: string;
+  phone?: string;
   username?: string;
 };
 

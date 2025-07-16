@@ -122,7 +122,7 @@ export const OtpSchema = z.object({
 export const PasswordlessAccessSchema = UsernameEmailPhoneObject.extend({
   refId: z.string().optional(),
   userId: z.string().optional(),
-  provider: z.enum(["firebase", "email", "google"]).optional(),
+  provider: z.enum(["firebase", "email", "google", "phone"]).optional(),
 });
 
 export const UsernamePasswordSchema = z.object({
