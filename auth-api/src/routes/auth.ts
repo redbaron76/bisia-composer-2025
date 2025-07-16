@@ -19,6 +19,7 @@ import { generateAccessAndRefreshTokens } from "@/middleware/auth";
 import { verify } from "hono/jwt";
 import { generateOtp, generateOtpExpiration } from "@/libs/tools";
 import { HTTPException } from "hono/http-exception";
+import { ERROR_MESSAGES } from "@/libs/errors";
 
 const auth = new Hono<AppContext>();
 
@@ -33,20 +34,20 @@ auth.post("/signup", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /signup",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.SIGNUP,
     });
   }
 
   if (!email && !username) {
     throw new HTTPException(400, {
-      message: "Email o username sono obbligatori",
+      message: ERROR_MESSAGES.VALIDATION.EMAIL_OR_USERNAME_REQUIRED,
     });
   }
 
   // la password è obbligatoria
   if (!password) {
     throw new HTTPException(400, {
-      message: "Password è obbligatoria",
+      message: ERROR_MESSAGES.VALIDATION.PASSWORD_REQUIRED,
     });
   }
 
@@ -55,7 +56,7 @@ auth.post("/signup", async (c) => {
     const isAppAuthorized = await checkIsAppAuthorized(origin);
     if (!isAppAuthorized) {
       throw new HTTPException(403, {
-        message: "Applicazione non autorizzata",
+        message: ERROR_MESSAGES.AUTHORIZATION.APP_NOT_AUTHORIZED,
       });
     }
 
@@ -66,7 +67,7 @@ auth.post("/signup", async (c) => {
     );
     if (!isUsernameAvailable) {
       throw new HTTPException(409, {
-        message: "Username già in uso",
+        message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
       });
     }
 
@@ -74,7 +75,7 @@ auth.post("/signup", async (c) => {
     const existingUser = await findUserByKeyReference(email, origin);
     if (existingUser) {
       throw new HTTPException(409, {
-        message: "Utente già registrato",
+        message: ERROR_MESSAGES.CONFLICT.USER_ALREADY_REGISTERED,
       });
     }
 
@@ -135,7 +136,7 @@ auth.post("/email-signup", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /email-signup",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.EMAIL_SIGNUP,
     });
   }
 
@@ -175,7 +176,7 @@ auth.post("/otp-confirmation", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /otp-confirmation",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.OTP_CONFIRMATION,
     });
   }
 
@@ -220,7 +221,7 @@ auth.post("/passwordless", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /passwordless",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.PASSWORDLESS,
     });
   }
 
@@ -228,8 +229,8 @@ auth.post("/passwordless", async (c) => {
   if (!username || (!isEmail && !isPhone)) {
     throw new HTTPException(400, {
       message: isEmail
-        ? "Username e email sono obbligatori"
-        : "Username e numero di telefono sono obbligatori",
+        ? ERROR_MESSAGES.VALIDATION.USERNAME_AND_EMAIL_REQUIRED
+        : ERROR_MESSAGES.VALIDATION.USERNAME_AND_PHONE_REQUIRED,
     });
   }
 
@@ -287,7 +288,7 @@ auth.post("/login", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /login",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.LOGIN,
     });
   }
 
@@ -299,13 +300,13 @@ auth.post("/login", async (c) => {
 
     if (!user) {
       throw new HTTPException(404, {
-        message: "Credenziali non valide",
+        message: ERROR_MESSAGES.AUTHORIZATION.INVALID_CREDENTIALS,
       });
     }
 
     if (!user.password) {
       throw new HTTPException(404, {
-        message: "Credenziali non valide",
+        message: ERROR_MESSAGES.AUTHORIZATION.INVALID_CREDENTIALS,
       });
     }
 
@@ -313,7 +314,7 @@ auth.post("/login", async (c) => {
 
     if (!isValidPassword) {
       throw new HTTPException(404, {
-        message: "Credenziali non valide",
+        message: ERROR_MESSAGES.AUTHORIZATION.INVALID_CREDENTIALS,
       });
     }
 
@@ -352,7 +353,7 @@ auth.post("/refresh", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /refresh",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.REFRESH,
     });
   }
 
@@ -363,7 +364,7 @@ auth.post("/refresh", async (c) => {
     const storedToken = await findRefreshTokenByUserId(userId, origin);
     if (!storedToken) {
       throw new HTTPException(404, {
-        message: "Refresh token non valido o scaduto",
+        message: ERROR_MESSAGES.AUTHORIZATION.INVALID_REFRESH_TOKEN,
       });
     }
 
@@ -372,7 +373,7 @@ auth.post("/refresh", async (c) => {
 
   if (!refreshToken) {
     throw new HTTPException(404, {
-      message: "Refresh token non valido o scaduto",
+      message: ERROR_MESSAGES.AUTHORIZATION.INVALID_REFRESH_TOKEN,
     });
   }
 
@@ -386,7 +387,7 @@ auth.post("/refresh", async (c) => {
     // Verifica che il token sia per l'applicazione corretta e che l'utente sia lo stesso
     if (payload.appId !== origin || (userId && payload.userId !== userId)) {
       throw new HTTPException(404, {
-        message: "Refresh token non valido per questa applicazione",
+        message: ERROR_MESSAGES.AUTHORIZATION.INVALID_REFRESH_TOKEN_APP,
       });
     }
 
@@ -394,7 +395,7 @@ auth.post("/refresh", async (c) => {
     const user = await findUserById(payload.userId);
     if (!user) {
       throw new HTTPException(404, {
-        message: "Utente non trovato",
+        message: ERROR_MESSAGES.AUTHORIZATION.USER_NOT_FOUND,
       });
     }
 
@@ -425,7 +426,7 @@ auth.post("/logout", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /logout",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.LOGOUT,
     });
   }
 
@@ -462,16 +463,16 @@ auth.post("/check-username", async (c) => {
 
   if (!origin) {
     throw new HTTPException(500, {
-      message: "Origin mancante nella chiamata: /check-username",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.CHECK_USERNAME,
     });
   }
 
   try {
     let errorMessage = isCheckingPhone
-      ? "Numero di telefono già in uso con un altro account"
+      ? ERROR_MESSAGES.CONFLICT.PHONE_ALREADY_IN_USE
       : isCheckingEmail
-      ? "Indirizzo E-mail già in uso con un altro account"
-      : "Username già in uso con un altro account";
+      ? ERROR_MESSAGES.CONFLICT.EMAIL_ALREADY_IN_USE
+      : ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT;
 
     // check if phone or email is already in use
     const userByPhone = isCheckingPhone
@@ -483,14 +484,10 @@ auth.post("/check-username", async (c) => {
 
     const userByReference = userByPhone || userByEmail;
 
-    console.log("userByReference", userByReference);
-
     // if user by phone or email is not found
     if (!userByReference) {
       // check if username is already in use
       const userByUsername = await findUserByKeyReference(username, origin);
-
-      console.log("userByUsername", userByUsername);
 
       // if username is already in use and if isCheckingPhone is true, check if phone is different
       // if isCheckingEmail is true, check if email is different
@@ -499,11 +496,13 @@ auth.post("/check-username", async (c) => {
           // Se l'utente non ha un telefono o il telefono non corrisponde
           if (!userByUsername.phone) {
             throw new HTTPException(409, {
-              message: "Username già in uso con un altro account",
+              message:
+                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
             });
           } else {
             throw new HTTPException(409, {
-              message: "Il numero di telefono non sembra essere corretto",
+              message:
+                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
             });
           }
         }
@@ -512,11 +511,13 @@ auth.post("/check-username", async (c) => {
           // Se l'utente non ha un'email o l'email non corrisponde
           if (!userByUsername.email) {
             throw new HTTPException(409, {
-              message: "Username già in uso con un altro account",
+              message:
+                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
             });
           } else {
             throw new HTTPException(409, {
-              message: "L'indirizzo email non sembra essere corretto",
+              message:
+                ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
             });
           }
         }
@@ -557,7 +558,7 @@ auth.post("/delete-user", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nella chiamata: /delete-user",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.DELETE_USER,
     });
   }
 
@@ -566,7 +567,7 @@ auth.post("/delete-user", async (c) => {
     const user = await findUserById(userId);
     if (!user) {
       throw new HTTPException(404, {
-        message: "Utente non trovato",
+        message: ERROR_MESSAGES.AUTHORIZATION.USER_NOT_FOUND,
       });
     }
 
@@ -574,7 +575,7 @@ auth.post("/delete-user", async (c) => {
     const isDeleted = await deleteUserById(userId);
     if (!isDeleted) {
       throw new HTTPException(500, {
-        message: "Errore durante la cancellazione dell'utente",
+        message: ERROR_MESSAGES.SERVER.USER_DELETION_ERROR,
       });
     }
 

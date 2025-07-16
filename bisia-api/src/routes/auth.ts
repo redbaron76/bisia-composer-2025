@@ -9,6 +9,7 @@ import type {
 import { createProfile, upsertProfile } from "@/api/profile";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
+import { ERROR_MESSAGES } from "@/libs/errors";
 import { HTTPException } from "hono/http-exception";
 import { Hono } from "hono";
 import { callAuthApi } from "@/api/auth";
@@ -410,7 +411,7 @@ auth.post("/check-username", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nel check-username",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.CHECK_USERNAME,
     });
   }
 
@@ -429,7 +430,7 @@ auth.post("/confirm-otp", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nel confirm-otp",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.CONFIRM_OTP,
     });
   }
 
@@ -443,7 +444,7 @@ auth.post("/confirm-otp", async (c) => {
     return c.json(resp);
   } catch (error) {
     throw new HTTPException(500, {
-      message: "Errore nel confirm-otp",
+      message: ERROR_MESSAGES.SERVER.CONFIRM_OTP_ERROR,
     });
   }
 });
@@ -456,7 +457,7 @@ auth.post("/delete-user", async (c) => {
 
   if (!origin) {
     throw new HTTPException(400, {
-      message: "Origin mancante nel delete-user",
+      message: ERROR_MESSAGES.MISSING_ORIGIN.DELETE_USER,
     });
   }
 

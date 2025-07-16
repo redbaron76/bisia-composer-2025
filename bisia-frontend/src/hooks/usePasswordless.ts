@@ -93,9 +93,15 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
       // save the credentials for the signup
       signupCredentialsRef.current = { username, email, phone };
 
-      // reset the form
+      // reset the form only on success
       formPasswordless.reset();
     } catch (error) {
+      // Don't reset the form on error, keep the current form visible
+      // Also reset OTP state to ensure we stay on the main form
+      setConfirmOtp(false);
+      setOtpExp(undefined);
+      setConfirmationResult(null);
+
       if (error instanceof Error) {
         onError?.({ error: true, message: error.message });
       } else {
