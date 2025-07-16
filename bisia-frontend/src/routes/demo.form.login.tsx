@@ -4,7 +4,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useAppForm } from "@/hooks/demo.form";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/AuthStore";
-import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 export const Route = createFileRoute("/demo/form/login")({

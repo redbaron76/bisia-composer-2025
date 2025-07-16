@@ -5,7 +5,23 @@ export enum Role {
   USER = "user",
 }
 
-export type SignupUser = {
+export type SignupData = {
+  accessToken: string;
+  refreshToken?: string;
+  refreshTokenExpiration: number;
+  user: User;
+  error?: string;
+};
+
+// Response type that matches the backend response structure
+export type AuthResponse = {
+  message: string;
+  accessToken: string;
+  user: User;
+  error?: boolean;
+};
+
+export type User = {
   id: string;
   username: string;
   slug: string;
@@ -17,35 +33,6 @@ export type SignupUser = {
   appId: string;
   wasCreated: boolean;
   wasConfirmed: boolean;
-};
-
-export type SignupData = {
-  accessToken: string;
-  refreshToken?: string;
-  refreshTokenExpiration: number;
-  user: SignupUser;
-  error?: string;
-};
-
-// Response type that matches the backend response structure
-export type AuthResponse = {
-  message: string;
-  accessToken: string;
-  user: SignupUser;
-  error?: boolean;
-};
-
-export type User = {
-  id: string;
-  refId?: string;
-  username: string;
-  slug: string;
-  phone?: string;
-  email?: string;
-  role: Role;
-  isDisabled: boolean;
-  created: string;
-  updated: string;
 };
 
 export type CreateUser = Omit<User, "id" | "created" | "updated">;

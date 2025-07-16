@@ -6,6 +6,7 @@ import type {
   Role,
   SignupData,
 } from "@/types/user";
+import { createProfile, upsertProfile } from "@/api/profile";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
 import { HTTPException } from "hono/http-exception";
@@ -148,8 +149,14 @@ auth.post("/otp-confirmation", async (c) => {
  * return accessToken, refreshToken, user and message
  */
 auth.post("/passwordless", async (c) => {
-  const { username, email, phone, refId, userId, provider } =
-    await c.req.json();
+  const {
+    username,
+    email,
+    phone,
+    refId,
+    userId,
+    provider: requestProvider,
+  } = await c.req.json();
   const origin = c.req.header("Origin");
 
   const isEmail = !!email;
@@ -173,7 +180,7 @@ auth.post("/passwordless", async (c) => {
   try {
     const authData = await callAuthApi<SignupData>(
       "/auth/passwordless",
-      { username, email, phone, refId, userId, provider },
+      { username, email, phone, refId, userId, provider: requestProvider },
       { origin }
     );
 
@@ -202,28 +209,33 @@ auth.post("/passwordless", async (c) => {
       });
     }
 
-    log(authData, "authData");
+    let createFirstProfile = false;
+    const { wasCreated, wasConfirmed, provider: userProvider } = authData.user;
 
-    const forceCreate = isPhone
-      ? authData.user.wasCreated
-      : isEmail
-      ? authData.user.wasCreated && authData.user.wasConfirmed
-      : false;
+    // Create profile when:
+    // 1. User was created in this session (new user) OR
+    // 2. User was confirmed (first login after OTP confirmation for email)
+    createFirstProfile =
+      wasCreated || (wasConfirmed && userProvider === "email");
 
     // Create a new user in the database
-    await upsertUser(
-      {
+    await upsertUser({
+      id: authData.user.id,
+      refId: authData.user.refId,
+      username: authData.user.username,
+      slug: authData.user.slug,
+      phone: authData.user.phone,
+      email: authData.user.email,
+      role: authData.user.role as Role,
+      isDisabled: false,
+    });
+
+    if (createFirstProfile) {
+      await upsertProfile({
         id: authData.user.id,
-        refId: authData.user.refId,
-        username: authData.user.username,
-        slug: authData.user.slug,
-        phone: authData.user.phone,
-        email: authData.user.email,
-        role: authData.user.role as Role,
-        isDisabled: false,
-      },
-      forceCreate // force create user
-    );
+        userId: authData.user.id,
+      });
+    }
 
     return c.json({
       message: "Accesso effettuato con successo",

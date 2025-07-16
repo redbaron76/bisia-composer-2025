@@ -14,6 +14,7 @@ interface UserBase {
   appId: string; // Identificativo dell'applicativo
   otp?: number;
   otpExp?: number;
+  provider?: string;
 }
 
 // Interface that requires at least one of username (and slug) or email or phone
@@ -59,6 +60,7 @@ export type SignupUser = {
   appId: string;
   wasCreated: boolean;
   wasConfirmed: boolean;
+  provider?: string;
 };
 
 export type SignupData = {

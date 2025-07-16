@@ -30,22 +30,6 @@ type PasswordlessOptions = {
   onSuccess?: (userAuth: User, accessToken: string, message?: string) => void;
 };
 
-// Helper function to convert SignupUser to User
-const convertSignupUserToUser = (signupUser: any): User => {
-  return {
-    id: signupUser.id,
-    refId: signupUser.refId,
-    username: signupUser.username,
-    slug: signupUser.slug,
-    phone: signupUser.phone,
-    email: signupUser.email,
-    role: signupUser.role,
-    isDisabled: false, // Default value since SignupUser doesn't have this
-    created: new Date().toISOString(), // Default value since SignupUser doesn't have this
-    updated: new Date().toISOString(), // Default value since SignupUser doesn't have this
-  };
-};
-
 export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
   const {
     confirmationResult,
@@ -92,45 +76,37 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
 
     const isPhone = !!phone;
 
-    // check if username and phone are already in use
-    const { error, message } = await checkUser({ username, email, phone });
+    try {
+      // check if username and phone are already in use
+      await checkUser({ username, email, phone });
 
-    console.log("checkUser", { error, message });
+      // Se arriviamo qui, non ci sono errori
+      if (isPhone && phone) {
+        await signUpWithPhone(phone);
+      } else if (email) {
+        const otpExp = await signUpWithEmail({ username, email });
 
-    if (error) {
-      onError?.({ error, message });
-      setIsSigningIn(false);
-      return;
-    }
-
-    if (!error) {
-      try {
-        if (isPhone && phone) {
-          await signUpWithPhone(phone);
-        } else if (email) {
-          const otpExp = await signUpWithEmail({ username, email });
-
-          setOtpExp(otpExp);
-          setConfirmOtp(true);
-        }
-
-        // save the credentials for the signup
-        signupCredentialsRef.current = { username, email, phone };
-
-        // reset the form
-        formPasswordless.reset();
-      } catch (error) {
-        if (error instanceof Error) {
-          onError?.({ error: true, message: error.message });
-        } else {
-          onError?.({
-            error: true,
-            message: "Errore nel login con email o telefono",
-          });
-        }
-      } finally {
-        setIsSigningIn(false);
+        setOtpExp(otpExp);
+        setConfirmOtp(true);
       }
+
+      // save the credentials for the signup
+      signupCredentialsRef.current = { username, email, phone };
+
+      // reset the form
+      formPasswordless.reset();
+    } catch (error) {
+      console.log("passwordlessSignIn error", error);
+      if (error instanceof Error) {
+        onError?.({ error: true, message: error.message });
+      } else {
+        onError?.({
+          error: true,
+          message: "Errore nel login con email o telefono",
+        });
+      }
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -163,7 +139,7 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
           });
 
           const { user, accessToken, message } = response;
-          const convertedUser = convertSignupUserToUser(user);
+          const convertedUser = user;
 
           onSuccess?.(convertedUser, accessToken, message);
 

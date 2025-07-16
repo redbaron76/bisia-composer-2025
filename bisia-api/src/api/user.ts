@@ -55,24 +55,9 @@ export const createUser = async (userData: CreateUser): Promise<User> => {
 };
 
 export const upsertUser = async (
-  userData: UpdateUser,
-  forceCreate: boolean = false
+  userData: UpdateUser
 ): Promise<User & { wasCreated: boolean }> => {
   try {
-    console.log("forceCreate", forceCreate);
-
-    // If forceCreate is true and userData.id is provided, create a new user with the provided data
-    if (forceCreate && userData.id) {
-      // create first the user
-      const user = await createUser(userData);
-      // create the profile
-      await createProfile({
-        id: user.id,
-        userId: user.id,
-      });
-      return { ...user, wasCreated: true };
-    }
-
     // Try to find existing user by userId
     const existingUser = userData.id ? await findUserById(userData.id) : null;
 

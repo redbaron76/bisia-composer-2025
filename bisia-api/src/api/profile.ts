@@ -23,26 +23,36 @@ export const createProfile = async (profileData: Partial<Profile>) => {
  * @param profileData - The profile data to upsert
  * @returns The upserted profile
  */
-export const upsertProfile = async (
-  profileData: Profile,
-  forceCreate: boolean = false
-) => {
+export const upsertProfile = async (profileData: Partial<Profile>) => {
   try {
-    const existingProfile = profileData.id
-      ? await pb.collection("profiles").getOne(profileData.id)
-      : null;
+    // If we have an ID, try to find existing profile
+    if (profileData.id) {
+      try {
+        const existingProfile = await pb
+          .collection("profiles")
+          .getOne(profileData.id);
 
-    if (existingProfile) {
-      const profile = await pb
-        .collection("profiles")
-        .update(existingProfile.id, {
-          ...profileData,
-        });
-      return { ...profile, wasCreated: false };
-    } else {
-      const profile = await createProfile(profileData);
-      return { ...profile, wasCreated: true };
+        if (existingProfile) {
+          // Update existing profile
+          const profile = await pb
+            .collection("profiles")
+            .update(existingProfile.id, {
+              ...profileData,
+            });
+          return { ...profile, wasCreated: false };
+        }
+      } catch (error) {
+        // Profile not found, will create new one with specified ID
+        console.log(
+          "Profile not found, creating new one with ID:",
+          profileData.id
+        );
+      }
     }
+
+    // Create new profile (with specified ID if provided)
+    const profile = await createProfile(profileData);
+    return { ...profile, wasCreated: true };
   } catch (error) {
     console.error("Error upserting profile", error);
     throw error;

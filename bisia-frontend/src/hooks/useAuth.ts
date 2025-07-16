@@ -6,25 +6,8 @@ import {
   doProtected,
 } from "@/apis/auth";
 
-import type { User } from "@/types/auth";
 import { useAuthStore } from "@/stores/AuthStore";
 import { useMutation } from "@tanstack/react-query";
-
-// Helper function to convert SignupUser to User
-const convertSignupUserToUser = (signupUser: any): User => {
-  return {
-    id: signupUser.id,
-    refId: signupUser.refId,
-    username: signupUser.username,
-    slug: signupUser.slug,
-    phone: signupUser.phone,
-    email: signupUser.email,
-    role: signupUser.role,
-    isDisabled: false, // Default value since SignupUser doesn't have this
-    created: new Date().toISOString(), // Default value since SignupUser doesn't have this
-    updated: new Date().toISOString(), // Default value since SignupUser doesn't have this
-  };
-};
 
 export const useAuth = () => {
   const logoutMutation = useMutation({
@@ -45,17 +28,15 @@ export const useAuth = () => {
   const loginMutation = useMutation({
     mutationFn: doLogin,
     onSuccess: (data) => {
-      const convertedUser = convertSignupUserToUser(data.user);
       useAuthStore.setState({
         accessToken: data.accessToken,
-        userAuth: convertedUser,
+        userAuth: data.user,
         isAuthenticated: true,
         error: undefined,
         message: "Login effettuato con successo",
       });
     },
     onError: (error) => {
-      console.log("loginMutation onError error", error);
       useAuthStore.setState({
         error: true,
         message: error.message,
@@ -81,10 +62,9 @@ export const useAuth = () => {
   const loginPhoneMutation = useMutation({
     mutationFn: doPasswordlessIn,
     onSuccess: (data) => {
-      const convertedUser = convertSignupUserToUser(data.user);
       useAuthStore.setState({
         accessToken: data.accessToken,
-        userAuth: convertedUser,
+        userAuth: data.user,
         isAuthenticated: true,
       });
     },

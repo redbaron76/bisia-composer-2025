@@ -266,6 +266,7 @@ auth.post("/passwordless", async (c) => {
           appId: user.appId,
           wasCreated: user.wasCreated,
           wasConfirmed: user.wasConfirmed,
+          provider: user.provider,
         } satisfies SignupUser,
       } satisfies SignupData,
       user.wasCreated ? 201 : 200
@@ -467,10 +468,10 @@ auth.post("/check-username", async (c) => {
 
   try {
     let errorMessage = isCheckingPhone
-      ? "Numero di telefono già in uso"
+      ? "Numero di telefono già in uso con un altro account"
       : isCheckingEmail
-      ? "Indirizzo E-mail già in uso"
-      : "Username già in uso";
+      ? "Indirizzo E-mail già in uso con un altro account"
+      : "Username già in uso con un altro account";
 
     // check if phone or email is already in use
     const userByPhone = isCheckingPhone
@@ -493,21 +494,31 @@ auth.post("/check-username", async (c) => {
 
       // if username is already in use and if isCheckingPhone is true, check if phone is different
       // if isCheckingEmail is true, check if email is different
-      // if isCheckingPhone and isCheckingEmail are true, check if phone and email are different
-      // if isCheckingPhone and isCheckingEmail are false, return false
-      // if isCheckingPhone and isCheckingEmail are true, return false
-      // if isCheckingPhone and isCheckingEmail are false, return false
       if (userByUsername) {
         if (isCheckingPhone && userByUsername.phone !== phone) {
-          throw new HTTPException(409, {
-            message: errorMessage,
-          });
+          // Se l'utente non ha un telefono o il telefono non corrisponde
+          if (!userByUsername.phone) {
+            throw new HTTPException(409, {
+              message: "Username già in uso con un altro account",
+            });
+          } else {
+            throw new HTTPException(409, {
+              message: "Il numero di telefono non sembra essere corretto",
+            });
+          }
         }
 
         if (isCheckingEmail && userByUsername.email !== email) {
-          throw new HTTPException(409, {
-            message: errorMessage,
-          });
+          // Se l'utente non ha un'email o l'email non corrisponde
+          if (!userByUsername.email) {
+            throw new HTTPException(409, {
+              message: "Username già in uso con un altro account",
+            });
+          } else {
+            throw new HTTPException(409, {
+              message: "L'indirizzo email non sembra essere corretto",
+            });
+          }
         }
       }
 

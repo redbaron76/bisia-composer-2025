@@ -68,6 +68,7 @@ const handleResponse = async (
         case 401:
           return await reAuthorizeRequest(response);
         case 400:
+        case 409:
         case 500:
         case 404:
           if (typeof resp === "object" && resp.error === true && resp.message) {
