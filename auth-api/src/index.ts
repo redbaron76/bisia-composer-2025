@@ -1,8 +1,8 @@
+import { auth, google } from "@/routes";
 import { initApp, optionsMiddleware } from "@/middleware";
 
 import type { AppContext } from "@/types";
 import { Hono } from "hono";
-import auth from "@/routes/auth";
 import { cors } from "hono/cors";
 import { env } from "@/env";
 import { handleException } from "@/middleware/error";
@@ -38,6 +38,7 @@ app.onError(handleException);
 
 // Monta le rotte di autenticazione
 app.route("/api/auth", auth);
+app.route("/api/google", google);
 
 const port = env.PORT;
 

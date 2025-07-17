@@ -17,9 +17,15 @@ export const ERROR_MESSAGES = {
     DELETE_USER: "Origin mancante nel delete-user",
   },
 
+  GOOGLE: {
+    MISSING_CODE: "Code mancante nella chiamata: /google/callback",
+    MISSING_ORIGIN: "Origin mancante nella chiamata: /google/callback",
+  },
+
   // Server errors
   SERVER: {
     CONFIRM_OTP_ERROR: "Errore nel confirm-otp",
+    GOOGLE_CALLBACK: "Errore nel callback di Google",
   },
 } as const;
 

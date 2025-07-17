@@ -227,10 +227,12 @@ export const deleteRefreshTokenByUserId = async (
  */
 export const createUser = async (userData: {
   username?: string;
+  slug?: string;
   email?: string;
   phone?: string;
   password?: string;
   refId?: string;
+  picture?: string;
   appId: string;
   role?: string;
   provider?: string;
@@ -241,17 +243,18 @@ export const createUser = async (userData: {
   try {
     const user = await pb.collection("users").create<User>({
       username: userData.username,
-      slug: doSlug(userData.username),
+      slug: userData.slug,
       email: userData.email,
       phone: userData.phone,
-      password: userData.password || undefined,
-      refId: userData.refId || undefined,
+      password: userData.password,
+      refId: userData.refId,
+      picture: userData.picture,
       appId: userData.appId,
       role: userData.role || "user",
-      provider: userData.provider || undefined,
-      otp: userData.otp || undefined,
-      otpExp: userData.otpExp || undefined,
-      tmpField: userData.tmpField || undefined,
+      provider: userData.provider,
+      otp: userData.otp,
+      otpExp: userData.otpExp,
+      tmpField: userData.tmpField,
     });
     return user;
   } catch (error) {
@@ -263,10 +266,12 @@ export const createUser = async (userData: {
 export const upsertUser = async (userData: {
   id?: string;
   username?: string;
+  slug?: string;
   email?: string;
   phone?: string;
   password?: string;
   refId?: string;
+  picture?: string;
   appId: string;
   role?: string;
   otp?: number;
@@ -284,10 +289,12 @@ export const upsertUser = async (userData: {
 
       const user = await createUser({
         username: userData.username,
+        slug: userData.slug,
         email: userData.email,
         phone: userData.phone,
         password: userData.password,
         refId: userData.refId,
+        picture: userData.picture,
         appId: userData.appId,
         role: userData.role,
         provider: userData.provider,

@@ -1,6 +1,7 @@
+import { auth, google } from "@/routes";
+
 import { Hono } from "hono";
 import type { JWTPayload } from "hono/utils/jwt/types";
-import auth from "@/routes/auth";
 import { authenticateToken } from "@/middleware/auth";
 import { cors } from "hono/cors";
 import { env } from "@/env";
@@ -30,6 +31,7 @@ app.onError(handleException);
 
 // routes
 app.route("/api/auth", auth);
+app.route("/api/google", google);
 
 // root route
 app.get("/", (c) => {

@@ -17,6 +17,7 @@ import { Route as DemoFormSimpleImport } from './routes/demo.form.simple'
 import { Route as DemoFormSignupImport } from './routes/demo.form.signup'
 import { Route as DemoFormPhoneImport } from './routes/demo.form.phone'
 import { Route as DemoFormLoginImport } from './routes/demo.form.login'
+import { Route as DemoFormGmailImport } from './routes/demo.form.gmail'
 import { Route as DemoFormEmailImport } from './routes/demo.form.email'
 import { Route as DemoFormAddressImport } from './routes/demo.form.address'
 
@@ -55,6 +56,12 @@ const DemoFormPhoneRoute = DemoFormPhoneImport.update({
 const DemoFormLoginRoute = DemoFormLoginImport.update({
   id: '/demo/form/login',
   path: '/demo/form/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DemoFormGmailRoute = DemoFormGmailImport.update({
+  id: '/demo/form/gmail',
+  path: '/demo/form/gmail',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -102,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoFormEmailImport
       parentRoute: typeof rootRoute
     }
+    '/demo/form/gmail': {
+      id: '/demo/form/gmail'
+      path: '/demo/form/gmail'
+      fullPath: '/demo/form/gmail'
+      preLoaderRoute: typeof DemoFormGmailImport
+      parentRoute: typeof rootRoute
+    }
     '/demo/form/login': {
       id: '/demo/form/login'
       path: '/demo/form/login'
@@ -140,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
   '/demo/form/email': typeof DemoFormEmailRoute
+  '/demo/form/gmail': typeof DemoFormGmailRoute
   '/demo/form/login': typeof DemoFormLoginRoute
   '/demo/form/phone': typeof DemoFormPhoneRoute
   '/demo/form/signup': typeof DemoFormSignupRoute
@@ -151,6 +166,7 @@ export interface FileRoutesByTo {
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
   '/demo/form/email': typeof DemoFormEmailRoute
+  '/demo/form/gmail': typeof DemoFormGmailRoute
   '/demo/form/login': typeof DemoFormLoginRoute
   '/demo/form/phone': typeof DemoFormPhoneRoute
   '/demo/form/signup': typeof DemoFormSignupRoute
@@ -163,6 +179,7 @@ export interface FileRoutesById {
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
   '/demo/form/email': typeof DemoFormEmailRoute
+  '/demo/form/gmail': typeof DemoFormGmailRoute
   '/demo/form/login': typeof DemoFormLoginRoute
   '/demo/form/phone': typeof DemoFormPhoneRoute
   '/demo/form/signup': typeof DemoFormSignupRoute
@@ -176,6 +193,7 @@ export interface FileRouteTypes {
     | '/demo/tanstack-query'
     | '/demo/form/address'
     | '/demo/form/email'
+    | '/demo/form/gmail'
     | '/demo/form/login'
     | '/demo/form/phone'
     | '/demo/form/signup'
@@ -186,6 +204,7 @@ export interface FileRouteTypes {
     | '/demo/tanstack-query'
     | '/demo/form/address'
     | '/demo/form/email'
+    | '/demo/form/gmail'
     | '/demo/form/login'
     | '/demo/form/phone'
     | '/demo/form/signup'
@@ -196,6 +215,7 @@ export interface FileRouteTypes {
     | '/demo/tanstack-query'
     | '/demo/form/address'
     | '/demo/form/email'
+    | '/demo/form/gmail'
     | '/demo/form/login'
     | '/demo/form/phone'
     | '/demo/form/signup'
@@ -208,6 +228,7 @@ export interface RootRouteChildren {
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoFormAddressRoute: typeof DemoFormAddressRoute
   DemoFormEmailRoute: typeof DemoFormEmailRoute
+  DemoFormGmailRoute: typeof DemoFormGmailRoute
   DemoFormLoginRoute: typeof DemoFormLoginRoute
   DemoFormPhoneRoute: typeof DemoFormPhoneRoute
   DemoFormSignupRoute: typeof DemoFormSignupRoute
@@ -219,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoFormAddressRoute: DemoFormAddressRoute,
   DemoFormEmailRoute: DemoFormEmailRoute,
+  DemoFormGmailRoute: DemoFormGmailRoute,
   DemoFormLoginRoute: DemoFormLoginRoute,
   DemoFormPhoneRoute: DemoFormPhoneRoute,
   DemoFormSignupRoute: DemoFormSignupRoute,
@@ -239,6 +261,7 @@ export const routeTree = rootRoute
         "/demo/tanstack-query",
         "/demo/form/address",
         "/demo/form/email",
+        "/demo/form/gmail",
         "/demo/form/login",
         "/demo/form/phone",
         "/demo/form/signup",
@@ -256,6 +279,9 @@ export const routeTree = rootRoute
     },
     "/demo/form/email": {
       "filePath": "demo.form.email.tsx"
+    },
+    "/demo/form/gmail": {
+      "filePath": "demo.form.gmail.tsx"
     },
     "/demo/form/login": {
       "filePath": "demo.form.login.tsx"

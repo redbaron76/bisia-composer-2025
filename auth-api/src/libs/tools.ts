@@ -2,9 +2,7 @@ import slugify from "slugify";
 
 export const doSlug = (str: string = "") => {
   if (!str) return undefined;
-  // Remove spaces before generating slug
-  const cleanStr = str.replace(/\s+/g, "");
-  return slugify(cleanStr, {
+  return slugify(str.trim(), {
     lower: true,
     strict: true,
   });
