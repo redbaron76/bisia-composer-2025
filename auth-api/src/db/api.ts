@@ -455,8 +455,9 @@ export const deteleExpiredOtp = async (): Promise<void> => {
 export const deleteOtp = async (userId: string): Promise<void> => {
   try {
     await pb.collection("users").update<User>(userId, {
-      otp: undefined,
-      otpExp: undefined,
+      otp: null,
+      otpExp: null,
+      tmpField: null,
     });
   } catch (error) {
     console.error("Error deleting OTP", error);
