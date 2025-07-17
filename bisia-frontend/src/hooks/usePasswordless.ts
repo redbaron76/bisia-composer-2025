@@ -15,15 +15,11 @@ import {
 
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type {
-  ApiResponse,
-  OtpConfirmation,
-  OtpResponse,
-  User,
-} from "@/types/auth";
-import { useAppForm } from "./demo.form";
+import type { ApiResponse, OtpConfirmation, User } from "@/types/auth";
+import { useAppForm } from "@/hooks/demo.form";
 import { useFirebaseAuthPhone } from "@/hooks/useFirebaseAuthPhone";
 import type { User as FirebaseUser } from "firebase/auth";
+import { useAuthStore } from "@/stores/AuthStore";
 
 type PasswordlessOptions = {
   onError?: ({ error, message }: ApiResponse) => void;
@@ -43,9 +39,15 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [otpExp, setOtpExp] = useState<number>();
 
+  const resetMessage = useAuthStore((state) => state.resetMessage);
+
   useEffect(() => {
     setConfirmOtp(!!confirmationResult);
   }, [confirmationResult]);
+
+  useEffect(() => {
+    resetMessage();
+  }, [confirmOtp]);
 
   const { mutateAsync: checkUser, isPending: isCheckingUser } = useMutation({
     mutationFn: (data: UsernameEmailOrPhone) => doCheckUsername(data),
@@ -147,7 +149,7 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
             email,
             username,
           });
-          if (otpResponse.success) {
+          if (!otpResponse.error) {
             userId = otpResponse.userId;
             provider = "email";
           }

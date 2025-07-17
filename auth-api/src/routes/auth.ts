@@ -232,13 +232,12 @@ auth.post("/phone-signup", async (c) => {
  * @returns The response
  */
 auth.post("/otp-confirmation", async (c) => {
-  const { otp, email, phone, username } = await c.req.json();
+  const { otp, email, username } = await c.req.json();
   const origin = c.req.header("Origin");
 
   console.log("OTP confirmation - received data:", {
     otp,
     email,
-    phone,
     username,
   });
 
@@ -249,7 +248,7 @@ auth.post("/otp-confirmation", async (c) => {
   }
 
   try {
-    // Try to find user by username first (more reliable), then by email or phone
+    // Try to find user by username first (more reliable), poi by email
     let user = username ? await findUserByKeyReference(username, origin) : null;
     console.log(
       "OTP confirmation - searching by username:",
@@ -258,22 +257,12 @@ auth.post("/otp-confirmation", async (c) => {
       user?.id
     );
 
-    // If username search failed, try to find by email or phone
+    // If username search failed, try to find by email
     if (!user && email) {
       user = await findUserByKeyReference(email, origin);
       console.log(
         "OTP confirmation - searching by email:",
         email,
-        "result:",
-        user?.id
-      );
-    }
-
-    if (!user && phone) {
-      user = await findUserByKeyReference(phone, origin);
-      console.log(
-        "OTP confirmation - searching by phone:",
-        phone,
         "result:",
         user?.id
       );
@@ -300,31 +289,17 @@ auth.post("/otp-confirmation", async (c) => {
     console.log("User found:", user.id);
     console.log("User tmpField:", user.tmpField);
     console.log("User current email:", user.email);
-    console.log("User current phone:", user.phone);
     console.log("Requested email:", email);
-    console.log("Requested phone:", phone);
 
-    // If user has tmpField, update the appropriate field based on the request
-    if (user.tmpField) {
-      if (email && user.tmpField === email) {
-        // Update email
-        console.log("Updating email from tmpField:", user.tmpField);
-        await upsertUser({
-          id: user.id,
-          appId: origin,
-          email: user.tmpField, // Update actual email with tmpField
-        });
-        console.log("Email updated successfully");
-      } else if (phone && user.tmpField === phone) {
-        // Update phone
-        console.log("Updating phone from tmpField:", user.tmpField);
-        await upsertUser({
-          id: user.id,
-          appId: origin,
-          phone: user.tmpField, // Update actual phone with tmpField
-        });
-        console.log("Phone updated successfully");
-      }
+    // Se user ha tmpField e corrisponde all'email richiesta, aggiorna l'email
+    if (user.tmpField && email && user.tmpField === email) {
+      console.log("Updating email from tmpField:", user.tmpField);
+      await upsertUser({
+        id: user.id,
+        appId: origin,
+        email: user.tmpField, // Update actual email with tmpField
+      });
+      console.log("Email updated successfully");
     }
 
     // Always clear temporary fields and OTP

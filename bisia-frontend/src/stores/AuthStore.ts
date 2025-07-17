@@ -12,6 +12,7 @@ export type AuthProps = {
 };
 
 export interface AuthStore extends AuthProps {
+  resetMessage: () => void;
   setMessage: (error: boolean, message?: string) => void;
   setUserAuth: (userAuth: User, accessToken: string, message?: string) => void;
   setAuth: (key: keyof AuthProps, value: AuthProps[typeof key]) => void;
@@ -24,6 +25,10 @@ export const useAuthStore = create<AuthStore>()(
       accessToken: null,
       userAuth: null,
       confirmationResult: null,
+
+      resetMessage: () => {
+        set({ error: false, message: undefined });
+      },
 
       setMessage: (error: boolean, message?: string) => {
         set({ error, message });

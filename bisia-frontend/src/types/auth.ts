@@ -67,7 +67,6 @@ export type EmailSignin = {
 };
 
 export type OtpResponse = {
-  success: boolean;
   userId: string;
   error?: boolean;
   message?: string;
