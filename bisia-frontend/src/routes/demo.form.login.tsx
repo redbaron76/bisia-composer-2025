@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { EmailPasswordSchema } from "@/schemas/auth";
+import MessageInfo from "@/components/forms/MessageInfo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAppForm } from "@/hooks/demo.form";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/AuthStore";
-import { useShallow } from "zustand/react/shallow";
 
 export const Route = createFileRoute("/demo/form/login")({
   component: LoginForm,
@@ -12,13 +12,7 @@ export const Route = createFileRoute("/demo/form/login")({
 
 function LoginForm() {
   const { loginMutation, logoutMutation, protectedMutation } = useAuth();
-  const { isAuthenticated, message, error } = useAuthStore(
-    useShallow((state) => ({
-      isAuthenticated: state.isAuthenticated,
-      message: state.message,
-      error: state.error,
-    }))
-  );
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const form = useAppForm({
     defaultValues: {
@@ -65,11 +59,7 @@ function LoginForm() {
           {isAuthenticated ? (
             <div className="flex gap-4 justify-between">
               <div className="flex flex-col gap-4">
-                {error ? (
-                  <div className="text-red-500">{message}</div>
-                ) : (
-                  <div className="text-green-500">{message}</div>
-                )}
+                <MessageInfo />
                 <div>
                   <Button
                     type="button"
@@ -93,15 +83,7 @@ function LoginForm() {
               </div>
             </div>
           ) : (
-            <div className="flex gap-4 justify-between">
-              <div className="flex flex-col gap-4">
-                {error ? (
-                  <div className="text-red-500">{message}</div>
-                ) : (
-                  <div className="text-green-500">{message}</div>
-                )}
-              </div>
-            </div>
+            <MessageInfo />
           )}
         </form>
       </div>

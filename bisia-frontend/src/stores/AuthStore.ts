@@ -34,11 +34,11 @@ export const useAuthStore = create<AuthStore>()(
         set({ error, message });
       },
 
-      setUserAuth: (userAuth: User, accessToken, message) => {
+      setUserAuth: (userAuth, accessToken, message) => {
         set({
           error: false,
-          message: message || undefined,
           isAuthenticated: true,
+          message,
           userAuth,
           accessToken,
         });

@@ -15,18 +15,14 @@ import {
 
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { ApiResponse, OtpConfirmation, User } from "@/types/auth";
+import type { OtpConfirmation } from "@/types/auth";
 import { useAppForm } from "@/hooks/demo.form";
 import { useFirebaseAuthPhone } from "@/hooks/useFirebaseAuthPhone";
 import type { User as FirebaseUser } from "firebase/auth";
 import { useAuthStore } from "@/stores/AuthStore";
+import { useShallow } from "zustand/react/shallow";
 
-type PasswordlessOptions = {
-  onError?: ({ error, message }: ApiResponse) => void;
-  onSuccess?: (userAuth: User, accessToken: string, message?: string) => void;
-};
-
-export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
+export function usePasswordless() {
   const {
     confirmationResult,
     setConfirmationResult,
@@ -39,15 +35,17 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [otpExp, setOtpExp] = useState<number>();
 
-  const resetMessage = useAuthStore((state) => state.resetMessage);
+  const { resetMessage, setMessage, setUserAuth } = useAuthStore(
+    useShallow((state) => ({
+      resetMessage: state.resetMessage,
+      setMessage: state.setMessage,
+      setUserAuth: state.setUserAuth,
+    }))
+  );
 
   useEffect(() => {
     setConfirmOtp(!!confirmationResult);
   }, [confirmationResult]);
-
-  useEffect(() => {
-    resetMessage();
-  }, [confirmOtp]);
 
   const { mutateAsync: checkUser, isPending: isCheckingUser } = useMutation({
     mutationFn: (data: UsernameEmailOrPhone) => doCheckUsername(data),
@@ -92,6 +90,7 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
 
         setOtpExp(otpExp);
         setConfirmOtp(true);
+        resetMessage();
       }
 
       // save the credentials for the signup
@@ -107,12 +106,9 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
       setConfirmationResult(null);
 
       if (error instanceof Error) {
-        onError?.({ error: true, message: error.message });
+        setMessage(true, error.message);
       } else {
-        onError?.({
-          error: true,
-          message: "Errore nel login con email o telefono",
-        });
+        setMessage(true, "Errore nel login con email o telefono");
       }
     } finally {
       setIsSigningIn(false);
@@ -166,9 +162,12 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
           });
 
           const { user, accessToken, message } = response;
-          const convertedUser = user;
 
-          onSuccess?.(convertedUser, accessToken, message);
+          console.log("user", user);
+          console.log("accessToken", accessToken);
+          console.log("message", message);
+
+          setUserAuth(user, accessToken, message);
 
           // reset the form
           formOtp.reset();
@@ -183,9 +182,9 @@ export function usePasswordless({ onError, onSuccess }: PasswordlessOptions) {
         }
       } catch (error) {
         if (error instanceof Error) {
-          onError?.({ error: true, message: error.message });
+          setMessage(true, error.message);
         } else {
-          onError?.({ error: true, message: "Errore nel login con telefono" });
+          setMessage(true, "Errore nel login con telefono");
         }
       } finally {
         // reset the signing in state
