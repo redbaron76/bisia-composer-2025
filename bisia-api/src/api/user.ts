@@ -57,11 +57,19 @@ export const createUser = async (userData: CreateUser): Promise<User> => {
 export const upsertUser = async (
   userData: Partial<UpdateUser>
 ): Promise<User & { wasCreated: boolean }> => {
+  console.log("userData!!", userData);
   try {
+    // Validate that at least one of email or phone is present
+    const hasEmailOrPhone = userData.email || userData.phone;
+    const hasUsername = userData.username;
+
+    console.log("hasUsername", hasUsername);
+    console.log("hasEmailOrPhone", hasEmailOrPhone);
+
     // If no id is provided, create a new user with all required data
     if (!userData.id) {
-      // Validate that all required fields are present for creation
-      if (!userData.username || (!userData.email && !userData.phone)) {
+      // must have username and one of email or phone
+      if (!hasUsername || !hasEmailOrPhone) {
         throw new Error(
           "Username e e-mail o numero di telefono sono obbligatori"
         );
@@ -76,7 +84,7 @@ export const upsertUser = async (
 
     if (!existingUser) {
       // User not found, create new user with the provided id
-      if (!userData.username || (!userData.email && !userData.phone)) {
+      if (!hasUsername || !hasEmailOrPhone) {
         throw new Error(
           "Username e e-mail o numero di telefono sono obbligatori"
         );

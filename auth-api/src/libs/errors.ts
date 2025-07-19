@@ -16,7 +16,13 @@ export const ERROR_MESSAGES = {
     LOGOUT: "Origin mancante nella chiamata: /logout",
     CHECK_USERNAME: "Origin mancante nella chiamata: /check-username",
     DELETE_USER: "Origin mancante nella chiamata: /delete-user",
+    GOOGLE_SIGNUP: "Origin mancante nella chiamata: /google/signup",
+    GOOGLE_USER: "Origin mancante nella chiamata: /google/user",
   },
+
+  // Token errors
+  MISSING_TOKEN: "Token mancante nella chiamata",
+  ACCESS_TOKEN_NOT_FOUND: "Access token non trovato",
 
   // Validation errors
   VALIDATION: {
@@ -68,6 +74,11 @@ export const ERROR_MESSAGES = {
   SUCCESS: {
     REGISTRATION: "Registrazione effettuata con successo",
     LOGIN: "Accesso effettuato con successo",
+  },
+
+  // User errors
+  USER: {
+    USER_NOT_FOUND: "Utente non trovato",
   },
 } as const;
 

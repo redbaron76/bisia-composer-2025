@@ -63,6 +63,7 @@ export const generateAccessAndRefreshTokens = async (
       phone: user.phone,
       email: user.email,
       appId: user.appId,
+      provider: user.provider,
       exp: Math.floor(Date.now() / 1000) + accessTokenMinutesExp * 60,
     },
     env.JWT_SECRET

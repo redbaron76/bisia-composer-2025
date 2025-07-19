@@ -1,36 +1,46 @@
+import type { Role, SignupData, User } from "@/types/user";
 import { getFetcher, postFetcher } from "@/libs/fetcher";
 
 import { ERROR_MESSAGES } from "@/libs/errors";
 import { HTTPException } from "hono/http-exception";
 import { Hono } from "hono";
+import { OAuth2Client } from "google-auth-library";
 import { callAuthApi } from "@/api/auth";
 import { env } from "@/env";
+import { log } from "@/libs/tools";
+import { setCookie } from "hono/cookie";
+import { upsertProfile } from "@/api/profile";
+import { upsertUser } from "@/api/user";
+
+// create oauth2 client
+const oauth2Client = new OAuth2Client({
+  clientId: env.GOOGLE_CLIENT_ID,
+  clientSecret: env.GOOGLE_CLIENT_SECRET,
+  redirectUri: env.GOOGLE_REDIRECT_URI,
+});
 
 const google = new Hono();
 
 /**
- * Redirect to Google OAuth2 login page
+ * Generate Google OAuth2 login URL
  */
-google.get("/login", async (c) => {
-  // Get current domain from Origin header or construct from request
+google.get("/auth-url", async (c) => {
   const origin = c.req.query("origin");
-  const url = new URL(c.req.url);
 
-  console.log("origin", origin);
-  console.log("url", url);
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: ERROR_MESSAGES.GOOGLE.MISSING_ORIGIN,
+    });
+  }
 
-  const authUrl =
-    `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${env.GOOGLE_CLIENT_ID}&` +
-    `redirect_uri=${url.origin}${env.GOOGLE_REDIRECT_URI}&` +
-    `response_type=code&` +
-    `scope=email profile&` +
-    `access_type=offline` +
-    `&state=${encodeURIComponent(origin || "")}`;
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: ["email", "profile"],
+    redirect_uri: env.GOOGLE_REDIRECT_URI,
+    state: origin,
+  });
 
-  console.log("authUrl", authUrl);
-
-  return c.redirect(authUrl);
+  return c.json({ authUrl });
 });
 
 /**
@@ -43,8 +53,6 @@ google.get("/login", async (c) => {
 google.get("/callback", async (c) => {
   const { code } = c.req.query();
   const origin = c.req.query("state");
-  const url = new URL(c.req.url);
-  const currentDomain = url.origin;
 
   if (!code) {
     throw new HTTPException(400, {
@@ -59,27 +67,13 @@ google.get("/callback", async (c) => {
   }
 
   try {
-    console.log("currentDomain", currentDomain);
-    console.log("CLIENT_ID", env.GOOGLE_CLIENT_ID);
-    console.log("CLIENT_SECRET", env.GOOGLE_CLIENT_SECRET);
-    console.log("REDIRECT_URI", env.GOOGLE_REDIRECT_URI);
+    console.log("ORIGIN", origin);
     console.log("code", code);
 
-    // Get access token from Google
-    const tokenResponse = await postFetcher<{ access_token: string }>(
-      "https://oauth2.googleapis.com/token",
-      {
-        code,
-        client_id: env.GOOGLE_CLIENT_ID,
-        client_secret: env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${currentDomain}${env.GOOGLE_REDIRECT_URI}`,
-        grant_type: "authorization_code",
-      }
-    );
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
 
-    console.log("tokenResponse", tokenResponse);
-
-    const { access_token } = tokenResponse;
+    console.log("TOKENS", tokens);
 
     const userInfoResponse = await getFetcher<{
       id: string;
@@ -88,7 +82,7 @@ google.get("/callback", async (c) => {
       picture: string;
     }>("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: {
-        Authorization: `Bearer ${access_token}`,
+        Authorization: `Bearer ${tokens.access_token}`,
       },
     });
 
@@ -101,15 +95,89 @@ google.get("/callback", async (c) => {
     console.log("name", name);
     console.log("picture", picture);
 
-    const userId = await callAuthApi<{ userId: string }>(
-      "/google/save-user",
+    const token = await callAuthApi<string>(
+      "/google/signup",
       { refId, email, name, picture },
       { origin }
     );
 
-    console.log("userId", userId);
+    if (!token) {
+      throw new HTTPException(400, {
+        message: ERROR_MESSAGES.GOOGLE.MISSING_TOKEN,
+      });
+    }
 
-    return c.redirect(`${origin}/demo/form/gmail?userId=${userId.userId}`);
+    console.log("REDIRECTING TO", `${origin}/auth/google?token=${token}`);
+
+    return c.redirect(`${origin}/auth/google?token=${token}`, 302);
+  } catch (error) {
+    throw error;
+  }
+});
+
+google.get("/user", async (c) => {
+  const origin = c.req.header("Origin");
+  const token = c.req.query("token");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: ERROR_MESSAGES.GOOGLE.MISSING_ORIGIN,
+    });
+  }
+
+  if (!token) {
+    throw new HTTPException(400, {
+      message: ERROR_MESSAGES.GOOGLE.MISSING_TOKEN,
+    });
+  }
+
+  try {
+    const authData = await callAuthApi<SignupData>(
+      "/google/user",
+      { token },
+      { origin }
+    );
+
+    console.log("authData", authData);
+
+    if (authData.refreshToken) {
+      log(authData.refreshToken, "refresh token cookie set with value");
+
+      setCookie(c, "refreshToken", authData.refreshToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: authData.refreshTokenExpiration,
+        sameSite: "Lax",
+        secure: true,
+        domain: new URL(origin).hostname,
+      });
+    } else {
+      log(authData.user.id, "userId cookie set with value");
+
+      setCookie(c, "userId", authData.user.id, {
+        httpOnly: true,
+        path: "/",
+        maxAge: authData.refreshTokenExpiration,
+        sameSite: "Lax",
+        secure: true,
+        domain: new URL(origin).hostname,
+      });
+    }
+
+    const user = await upsertUser({
+      ...authData.user,
+    });
+
+    await upsertProfile({
+      ...user,
+      userId: user.id,
+    });
+
+    return c.json({
+      message: "Accesso effettuato con successo",
+      accessToken: authData.accessToken,
+      user: authData.user,
+    });
   } catch (error) {
     throw error;
   }

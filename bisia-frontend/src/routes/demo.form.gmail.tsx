@@ -14,7 +14,7 @@ function GmailForm() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const userAuth = useAuthStore((state) => state.userAuth);
 
-  const { signInWithGoogle } = useGmail();
+  const { signInWithGoogle, isLoadingAuthUrl } = useGmail();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 p-4 text-white">
@@ -53,14 +53,19 @@ function GmailForm() {
                 </Button>
               </div>
             </div>
+          ) : isLoadingAuthUrl ? (
+            <Button disabled>Loading...</Button>
           ) : (
-            <Button
-              onClick={() => {
-                signInWithGoogle();
-              }}
-            >
-              Login con Gmail
-            </Button>
+            <div className="flex flex-col gap-4">
+              <Button
+                onClick={() => {
+                  signInWithGoogle();
+                }}
+              >
+                Login con Gmail
+              </Button>
+              <MessageInfo />
+            </div>
           )}
         </div>
       </div>

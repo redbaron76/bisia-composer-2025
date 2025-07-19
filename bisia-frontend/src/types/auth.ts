@@ -10,7 +10,6 @@ export type SignupData = {
   refreshToken?: string;
   refreshTokenExpiration: number;
   user: User;
-  error?: string;
 };
 
 // Response type that matches the backend response structure

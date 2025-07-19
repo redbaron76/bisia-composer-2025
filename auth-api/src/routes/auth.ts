@@ -66,6 +66,7 @@ auth.post("/signup", async (c) => {
       username,
       origin
     );
+
     if (!isUsernameAvailable) {
       throw new HTTPException(409, {
         message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
@@ -96,6 +97,7 @@ auth.post("/signup", async (c) => {
       password: hashedPassword,
       appId: origin,
       role: "user",
+      provider: "password",
     });
 
     const { accessToken, refreshToken, refreshTokenExpiration } =
@@ -113,6 +115,7 @@ auth.post("/signup", async (c) => {
           phone: user.phone,
           role: user.role,
           appId: user.appId,
+          provider: user.provider,
           wasCreated: true,
           wasConfirmed: false,
         } satisfies SignupUser,

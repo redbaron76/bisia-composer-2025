@@ -42,12 +42,19 @@ app.get("/", (c) => {
 app.get("/api/protected", authenticateToken, (c) => {
   const payload = c.get("jwtPayload") as JWTPayload;
 
-  const { userId, username, phone, appId } = payload;
+  const { userId, username, phone, email, provider, appId } = payload;
 
   const time = new Date().toISOString();
 
+  let withWhat = "";
+  if (provider === "password") withWhat = "password";
+  if (provider === "google") withWhat = `email ${email} and provider google`;
+  if (provider === "email") withWhat = `email ${email}`;
+  if (provider === "firebase")
+    withWhat = `phone ${phone} and provider firebase`;
+
   return c.json({
-    message: `Protected route for user ${username} (${userId}) with phone ${phone} and app ${appId} at ${time}`,
+    message: `Protected route for user ${username} (${userId}) with ${withWhat} and app ${appId} at ${time}`,
   });
 });
 

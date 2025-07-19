@@ -318,7 +318,7 @@ export const upsertUser = async (userData: {
       const user = await pb.collection("users").create<User>({
         id: userData.id,
         username: userData.username,
-        slug: doSlug(userData.username),
+        slug: userData.slug || doSlug(userData.username),
         email: userData.email,
         phone: userData.phone,
         password: userData.password,
@@ -339,7 +339,7 @@ export const upsertUser = async (userData: {
 
     if (userData.username !== undefined) {
       updateData.username = userData.username;
-      updateData.slug = doSlug(userData.username);
+      updateData.slug = userData.slug || doSlug(userData.username);
     }
     if (userData.email !== undefined) updateData.email = userData.email;
     if (userData.phone !== undefined) updateData.phone = userData.phone;

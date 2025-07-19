@@ -24,7 +24,6 @@ export type SignupData = {
   refreshToken?: string;
   refreshTokenExpiration: number;
   user: SignupUser;
-  error?: string;
 };
 
 export type User = {

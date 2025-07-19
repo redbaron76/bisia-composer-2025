@@ -20,6 +20,7 @@ export const ERROR_MESSAGES = {
   GOOGLE: {
     MISSING_CODE: "Code mancante nella chiamata: /google/callback",
     MISSING_ORIGIN: "Origin mancante nella chiamata: /google/callback",
+    MISSING_TOKEN: "Token mancante nella chiamata: /google/callback",
   },
 
   // Server errors

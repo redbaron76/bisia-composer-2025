@@ -6,7 +6,6 @@ import type {
   Role,
   SignupData,
 } from "@/types/user";
-import { createProfile, upsertProfile } from "@/api/profile";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
 import { ERROR_MESSAGES } from "@/libs/errors";
@@ -14,6 +13,7 @@ import { HTTPException } from "hono/http-exception";
 import { Hono } from "hono";
 import { callAuthApi } from "@/api/auth";
 import { log } from "@/libs/tools";
+import { upsertProfile } from "@/api/profile";
 import { upsertUser } from "@/api/user";
 
 const auth = new Hono();

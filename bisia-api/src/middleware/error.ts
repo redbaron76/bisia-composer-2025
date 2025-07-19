@@ -22,7 +22,8 @@ export const handleException: ErrorHandler = (
   return c.json(
     {
       error: true,
-      message: "Errore interno del backend",
+      message:
+        err instanceof Error ? err.message : "Errore interno del backend",
     },
     500
   );
