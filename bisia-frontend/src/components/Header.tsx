@@ -8,9 +8,9 @@ export default function Header() {
           <Link to="/">Home</Link>
         </div>
 
-        {/* <div className="px-2 font-bold">
+        <div className="px-2 font-bold">
           <Link to="/demo/form/signup">Signup Form</Link>
-        </div> */}
+        </div>
 
         <div className="px-2 font-bold">
           <Link to="/demo/form/login">Login Form</Link>
@@ -22,6 +22,10 @@ export default function Header() {
 
         <div className="px-2 font-bold">
           <Link to="/demo/form/email">Email Login</Link>
+        </div>
+
+        <div className="px-2 font-bold">
+          <Link to="/demo/form/gmail">Google Login</Link>
         </div>
 
         {/* <div className="px-2 font-bold">

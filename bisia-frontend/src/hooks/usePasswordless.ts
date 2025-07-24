@@ -163,10 +163,6 @@ export function usePasswordless() {
 
           const { user, accessToken, message } = response;
 
-          console.log("user", user);
-          console.log("accessToken", accessToken);
-          console.log("message", message);
-
           setUserAuth(user, accessToken, message);
 
           // reset the form
