@@ -37,6 +37,9 @@ export const UsernameEmailOrPhoneSchema = z
     username: z.string().min(3),
     email: z.string().optional(),
     phone: z.string().optional(),
+    provider: z
+      .enum(["firebase", "email", "google", "phone", "password"])
+      .optional(),
   })
   .superRefine((data, ctx) => {
     // Se email è presente, valida solo email
@@ -141,6 +144,19 @@ export const UsernameEmailPasswordSchema = z.object({
   password: z.string().min(8),
 });
 
+// Schema for signup form with name, email, password, confirmPassword
+export const SignupSchema = z
+  .object({
+    name: z.string().min(3),
+    email: z.string().email(),
+    password: z.string().min(8),
+    confirmPassword: z.string().min(8),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export type EmailPassword = z.infer<typeof EmailPasswordSchema>;
 export type UsernameEmailOrPhone = z.infer<typeof UsernameEmailOrPhoneSchema>;
 export type UsernameEmail = z.infer<typeof UsernameEmailSchema>;
@@ -149,3 +165,4 @@ export type Otp = z.infer<typeof OtpSchema>;
 export type PasswordlessAccess = z.infer<typeof PasswordlessAccessSchema>;
 export type UsernamePassword = z.infer<typeof UsernamePasswordSchema>;
 export type UsernameEmailPassword = z.infer<typeof UsernameEmailPasswordSchema>;
+export type SignupData = z.infer<typeof SignupSchema>;

@@ -406,12 +406,13 @@ auth.post("/logout", async (c) => {
  * false: username has different phone or email
  */
 auth.post("/check-username", async (c) => {
-  const { username, phone, email } = await c.req.json();
+  const { username, phone, email, provider } = await c.req.json();
   const origin = c.req.header("Origin");
 
   console.log("username", username);
   console.log("phone", phone);
   console.log("email", email);
+  console.log("provider", provider);
   console.log("origin", origin);
   console.log("--------------------------------");
 
@@ -423,7 +424,7 @@ auth.post("/check-username", async (c) => {
 
   const resp = await callAuthApi<CheckUsername>(
     "/auth/check-username",
-    { username, phone, email },
+    { username, phone, email, provider },
     { origin }
   );
 
@@ -462,6 +463,135 @@ auth.post("/delete-user", async (c) => {
   }
 
   return c.json(resp);
+});
+
+/**
+ * sign up with password and email OTP confirmation
+ * return otpExp
+ */
+auth.post("/password-signup", async (c) => {
+  const { username, email, password } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /password-signup",
+    });
+  }
+
+  if (!username || !email || !password) {
+    throw new HTTPException(400, {
+      message: "Username, email e password sono obbligatori",
+    });
+  }
+
+  try {
+    const authData = await callAuthApi<number>(
+      "/auth/password-signup",
+      { username, email, password },
+      { origin }
+    );
+
+    return c.json(authData);
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * Confirm the OTP for password signup
+ * @param c - The context
+ * @returns The response
+ */
+auth.post("/password-signup-confirmation", async (c) => {
+  const { otp, email, username } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: "Origin mancante nella chiamata: /password-signup-confirmation",
+    });
+  }
+
+  if (!otp || !email) {
+    throw new HTTPException(400, {
+      message: "OTP e email sono obbligatori",
+    });
+  }
+
+  try {
+    const authData = await callAuthApi<SignupData>(
+      "/auth/password-signup-confirmation",
+      { otp, email, username },
+      { origin }
+    );
+
+    if (authData.refreshToken) {
+      setCookie(c, "refreshToken", authData.refreshToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: authData.refreshTokenExpiration,
+        sameSite: "None",
+        secure: true,
+        domain: new URL(origin).hostname,
+      });
+    } else {
+      setCookie(c, "userId", authData.user.id, {
+        httpOnly: true,
+        path: "/",
+        maxAge: authData.refreshTokenExpiration,
+        sameSite: "None",
+        secure: true,
+        domain: new URL(origin).hostname,
+      });
+    }
+
+    let createFirstProfile = false;
+    const { wasCreated, wasConfirmed, provider: userProvider } = authData.user;
+
+    // Create profile when:
+    // 1. User was created in this session (new user) OR
+    // 2. User was confirmed (first login after OTP confirmation for email or password)
+    createFirstProfile =
+      wasCreated ||
+      (wasConfirmed &&
+        (userProvider === "email" || userProvider === "password"));
+
+    // Create a new user in the database
+
+    if (createFirstProfile) {
+      await upsertUser({
+        id: authData.user.id,
+        refId: authData.user.refId,
+        username: authData.user.username,
+        slug: authData.user.slug,
+        phone: authData.user.phone,
+        email: authData.user.email,
+        role: authData.user.role as Role,
+        isDisabled: false,
+      });
+
+      await upsertProfile({
+        id: authData.user.id,
+        userId: authData.user.id,
+      });
+    } else {
+      // aggiorno email e phone
+      await upsertUser({
+        id: authData.user.id,
+        email,
+      });
+    }
+
+    return c.json({
+      message: "Registrazione confermata con successo",
+      accessToken: authData.accessToken,
+      refreshToken: authData.refreshToken,
+      user: authData.user,
+    });
+  } catch (error) {
+    throw error;
+  }
 });
 
 export default auth;

@@ -18,7 +18,7 @@ import { Hono } from "hono";
 import { env } from "@/env";
 import { generateAccessAndRefreshTokens } from "@/middleware/auth";
 import { verify } from "hono/jwt";
-import { generateOtp, generateOtpExpiration } from "@/libs/tools";
+import { generateOtp, generateOtpExpiration, doSlug } from "@/libs/tools";
 import { HTTPException } from "hono/http-exception";
 import { ERROR_MESSAGES } from "@/libs/errors";
 
@@ -501,6 +501,195 @@ auth.post("/login", async (c) => {
   }
 });
 
+/**
+ * sign up with password and email OTP confirmation
+ * @param c - The context
+ * @returns The response
+ *
+ * TODO: SEND EMAIL WITH OTP
+ */
+auth.post("/password-signup", async (c) => {
+  const { username, email, password } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: ERROR_MESSAGES.MISSING_ORIGIN.EMAIL_SIGNUP,
+    });
+  }
+
+  if (!username || !email || !password) {
+    throw new HTTPException(400, {
+      message: "Username, email e password sono obbligatori",
+    });
+  }
+
+  try {
+    // Verifica se l'applicazione è autorizzata
+    const isAppAuthorized = await checkIsAppAuthorized(origin);
+    if (!isAppAuthorized) {
+      throw new HTTPException(403, {
+        message: ERROR_MESSAGES.AUTHORIZATION.APP_NOT_AUTHORIZED,
+      });
+    }
+
+    // Verifica se l'username è disponibile
+    const isUsernameAvailable = await checkIsUsernameAvailable(
+      username,
+      origin
+    );
+
+    if (!isUsernameAvailable) {
+      throw new HTTPException(409, {
+        message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
+      });
+    }
+
+    // Verifica se l'utente esiste già
+    const existingUser = await findUserByKeyReference(email, origin);
+    if (existingUser) {
+      throw new HTTPException(409, {
+        message: ERROR_MESSAGES.CONFLICT.USER_ALREADY_REGISTERED,
+      });
+    }
+
+    // delete expired OTPs
+    await deleteExpiredOtp();
+
+    const otp = generateOtp(6);
+    const otpExp = generateOtpExpiration(5);
+
+    // Hash della password
+    const saltRounds = 10;
+    const hashedPassword = await Bun.password.hash(password, {
+      algorithm: "bcrypt",
+      cost: saltRounds,
+    });
+
+    // Crea il nuovo utente con password e OTP
+    const user = await createUser({
+      email,
+      username,
+      slug: doSlug(username),
+      password: hashedPassword,
+      appId: origin,
+      role: "user",
+      provider: "password",
+      otp,
+      otpExp,
+    });
+
+    console.log("Password signup - user created with OTP:", otp);
+
+    // TODO: SEND EMAIL WITH OTP
+    console.log("E-MAIL OTP", otp);
+
+    return c.json(otpExp);
+  } catch (error) {
+    throw error;
+  }
+});
+
+/**
+ * Confirm the OTP for password signup
+ * @param c - The context
+ * @returns The response
+ */
+auth.post("/password-signup-confirmation", async (c) => {
+  const { otp, email, username } = await c.req.json();
+  const origin = c.req.header("Origin");
+
+  console.log("Password signup OTP confirmation - received data:", {
+    otp,
+    email,
+    username,
+  });
+
+  if (!origin) {
+    throw new HTTPException(400, {
+      message: ERROR_MESSAGES.MISSING_ORIGIN.OTP_CONFIRMATION,
+    });
+  }
+
+  try {
+    // Try to find user by username first (more reliable), poi by email
+    let user = username ? await findUserByKeyReference(username, origin) : null;
+    console.log(
+      "Password signup OTP confirmation - searching by username:",
+      username,
+      "result:",
+      user?.id
+    );
+
+    // If username search failed, try to find by email
+    if (!user && email) {
+      user = await findUserByKeyReference(email, origin);
+      console.log(
+        "Password signup OTP confirmation - searching by email:",
+        email,
+        "result:",
+        user?.id
+      );
+    }
+
+    if (!user) {
+      throw new HTTPException(404, {
+        message: "Utente non trovato",
+      });
+    }
+
+    if (user.otp !== otp) {
+      throw new HTTPException(400, {
+        message: "Codice OTP non valido",
+      });
+    }
+
+    if (user.otpExp && user.otpExp < Date.now()) {
+      throw new HTTPException(400, {
+        message: "Codice OTP scaduto",
+      });
+    }
+
+    console.log("User found:", user.id);
+    console.log("User provider:", user.provider);
+
+    // Verifica che l'utente sia stato creato con provider "password"
+    if (user.provider !== "password") {
+      throw new HTTPException(400, {
+        message: "Utente non registrato con password",
+      });
+    }
+
+    // Clear OTP fields
+    await clearTemporaryFields(user.id);
+
+    // Generate tokens
+    const { accessToken, refreshToken, refreshTokenExpiration } =
+      await generateAccessAndRefreshTokens(c, user);
+
+    return c.json({
+      accessToken,
+      refreshToken,
+      refreshTokenExpiration,
+      user: {
+        id: user.id,
+        username: user.username,
+        slug: user.slug,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        refId: user.refId,
+        appId: user.appId,
+        wasCreated: false,
+        wasConfirmed: true,
+        provider: user.provider,
+      } satisfies SignupUser,
+    });
+  } catch (error) {
+    throw error;
+  }
+});
+
 // Refresh token
 auth.post("/refresh", async (c) => {
   const origin = c.req.header("Origin");
@@ -604,17 +793,19 @@ auth.post("/logout", async (c) => {
 // true: username + phone or username + email exists or false: username + phone or username + email does not exist
 // false: username has different phone or email
 auth.post("/check-username", async (c) => {
-  const { username, phone, email } = await c.req.json();
+  const { username, phone, email, provider } = await c.req.json();
   const origin = c.req.header("Origin");
 
   console.log("username", username);
   console.log("phone", phone);
   console.log("email", email);
+  console.log("provider", provider);
   console.log("origin", origin);
   console.log("------- CHECK USERNAME --------");
 
   const isCheckingPhone = !!phone;
   const isCheckingEmail = !!email;
+  const isPasswordProvider = provider === "password";
 
   if (!origin) {
     throw new HTTPException(500, {
@@ -629,67 +820,149 @@ auth.post("/check-username", async (c) => {
       ? ERROR_MESSAGES.CONFLICT.EMAIL_ALREADY_IN_USE
       : ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT;
 
-    // check if phone or email is already in use
-    const userByPhone = isCheckingPhone
-      ? await findUserByKeyReference(phone, origin)
-      : null;
+    // Check if email is already in use (when checking email)
     const userByEmail = isCheckingEmail
-      ? await findUserByKeyReference(email, origin)
+      ? await findUserByKeyReference(email, origin, provider)
       : null;
 
-    const userByReference = userByPhone || userByEmail;
+    // Check if phone is already in use (when checking phone)
+    const userByPhone = isCheckingPhone
+      ? await findUserByKeyReference(phone, origin, provider)
+      : null;
 
-    // if user by phone or email is not found
-    if (!userByReference) {
-      // check if username is already in use
-      const userByUsername = await findUserByKeyReference(username, origin);
+    // For password signup, we want to check that both username and email are unique
+    // regardless of the provider
+    if (isCheckingEmail) {
+      // Check if username is already taken by a different user
+      // We need to check both username and slug since findUserByKeyReference converts username to slug
+      const userByUsername = username
+        ? await findUserByKeyReference(username, origin, provider)
+        : null;
 
-      // if username is already in use, allow update only for email/firebase providers
-      if (userByUsername) {
-        // Allow update only if provider is email or firebase (for phone changes)
-        if (
-          userByUsername.provider === "email" ||
-          userByUsername.provider === "firebase"
-        ) {
-          return c.json({ error: false }, 200);
-        }
+      // Also check by slug directly
+      const userBySlug = username
+        ? await findUserByKeyReference(username, origin, provider)
+        : null;
 
-        // For other providers, check if phone/email matches
-        if (isCheckingPhone && userByUsername.phone !== phone) {
+      // For password provider, strict check - no duplicates allowed
+      if (isPasswordProvider) {
+        // If username is taken by a different user
+        if (userByUsername && userByUsername.email !== email) {
           throw new HTTPException(409, {
-            message:
-              ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
+            message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
           });
         }
 
-        if (isCheckingEmail && userByUsername.email !== email) {
+        // If slug is taken by a different user
+        if (userBySlug && userBySlug.email !== email) {
           throw new HTTPException(409, {
-            message:
-              ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
+            message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
           });
+        }
+
+        // Check if email is already taken by a different user
+        if (userByEmail && userByEmail.username !== username) {
+          throw new HTTPException(409, {
+            message: ERROR_MESSAGES.CONFLICT.EMAIL_ALREADY_IN_USE,
+          });
+        }
+      } else {
+        // For passwordless providers (firebase, email), allow updates
+        // Check if username is taken by a different user with different email
+        if (userByUsername && userByUsername.email !== email) {
+          // Allow update only if the existing user has a passwordless provider
+          if (userByUsername.provider === "password") {
+            throw new HTTPException(409, {
+              message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
+            });
+          }
+          // For passwordless providers, allow the update
+        }
+
+        // Check if slug is taken by a different user with different email
+        if (userBySlug && userBySlug.email !== email) {
+          // Allow update only if the existing user has a passwordless provider
+          if (userBySlug.provider === "password") {
+            throw new HTTPException(409, {
+              message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
+            });
+          }
+          // For passwordless providers, allow the update
+        }
+
+        // Check if email is already taken by a different user
+        if (userByEmail && userByEmail.username !== username) {
+          // Allow update only if the existing user has a passwordless provider
+          if (userByEmail.provider === "password") {
+            throw new HTTPException(409, {
+              message: ERROR_MESSAGES.CONFLICT.EMAIL_ALREADY_IN_USE,
+            });
+          }
+          // For passwordless providers, allow the update
         }
       }
 
-      // if phone or email is not in use and username is not in use, return true
+      // If we get here, either:
+      // 1. Both username and email are available
+      // 2. Both username and email belong to the same user (which is fine for updates)
+      // 3. For passwordless providers, updates are allowed
       return c.json({ error: false }, 200);
     }
 
-    // if user by phone is found, check if phone and username are the same
-    if (
-      userByPhone &&
-      userByPhone.phone === phone &&
-      userByPhone.username === username
-    ) {
-      return c.json({ error: false }, 200);
-    }
+    // For phone checks, keep the existing logic for backward compatibility
+    if (isCheckingPhone) {
+      // if user by phone is found, check if phone and username are the same
+      if (
+        userByPhone &&
+        userByPhone.phone === phone &&
+        userByPhone.username === username
+      ) {
+        return c.json({ error: false }, 200);
+      }
 
-    // if user by email is found, check if email and username are the same
-    if (
-      userByEmail &&
-      userByEmail.email === email &&
-      userByEmail.username === username
-    ) {
-      return c.json({ error: false }, 200);
+      // if user by phone is not found, check if username is available
+      if (!userByPhone) {
+        // Check both username and slug
+        const userByUsername = username
+          ? await findUserByKeyReference(username, origin, provider)
+          : null;
+        const userBySlug = username
+          ? await findUserByKeyReference(username, origin, provider)
+          : null;
+
+        // if username is already in use, allow update only for email/firebase providers
+        if (userByUsername || userBySlug) {
+          const existingUser = userByUsername || userBySlug;
+
+          if (existingUser) {
+            // For password provider, strict check
+            if (isPasswordProvider) {
+              throw new HTTPException(409, {
+                message: ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE,
+              });
+            }
+
+            // Allow update only if provider is email or firebase (for phone changes)
+            if (
+              existingUser.provider === "email" ||
+              existingUser.provider === "firebase"
+            ) {
+              return c.json({ error: false }, 200);
+            }
+
+            // For other providers, check if phone matches
+            if (existingUser.phone !== phone) {
+              throw new HTTPException(409, {
+                message:
+                  ERROR_MESSAGES.CONFLICT.USERNAME_ALREADY_IN_USE_OTHER_ACCOUNT,
+              });
+            }
+          }
+        }
+
+        // if phone is not in use and username is not in use, return true
+        return c.json({ error: false }, 200);
+      }
     }
 
     return c.json({ error: true, message: errorMessage }, 409);

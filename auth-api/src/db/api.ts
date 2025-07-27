@@ -34,7 +34,8 @@ export const findUserByKeyReference = async (
   if (!provider) provider = "";
   const isEmail = key.includes("@") && key.includes(".");
   const isPhone = key.startsWith("+");
-  const isRefId = !!provider && provider !== "email";
+  const isRefId =
+    !!provider && (provider === "google" || provider === "firebase");
   const isUsername = !isEmail && !isPhone && !isRefId;
 
   if (isUsername) key = doSlug(key) as string;
@@ -443,9 +444,14 @@ export const getAppOptions = async (): Promise<
  */
 export const deteleExpiredOtp = async (): Promise<void> => {
   try {
+    // Get users where otpExp exists and is less than current time
+    const now = Date.now();
     const users = await pb.collection("users").getFullList<User>({
-      filter: `otpExp < ${Date.now()}`,
+      filter: `otpExp != null && otpExp < ${now}`,
     });
+
+    console.log("users to delete", users.length);
+
     for (const user of users) {
       await deleteOtp(user.id);
     }

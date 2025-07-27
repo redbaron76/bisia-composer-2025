@@ -127,3 +127,29 @@ export const doDeleteUser = async (): Promise<DeleteUser> => {
 
   return resp;
 };
+
+export const doPasswordSignup = async (data: {
+  username: string;
+  email: string;
+  password: string;
+}): Promise<number> => {
+  return await postFetcher<number>(`${env.VITE_API_URL}/auth/password-signup`, {
+    username: data.username,
+    email: data.email,
+    password: data.password,
+  });
+};
+
+export const doPasswordSignupConfirmation = async (data: {
+  otp: string;
+  email: string;
+  username: string;
+}): Promise<AuthResponse> => {
+  return await postFetcher<AuthResponse>(
+    `${env.VITE_API_URL}/auth/password-signup-confirmation`,
+    data,
+    {
+      errorFallbackMessage: "Errore durante la conferma OTP",
+    }
+  );
+};
