@@ -11,12 +11,14 @@ import { useAppForm } from "@/hooks/demo.form";
 import { useAuthStore } from "@/stores/AuthStore";
 import { useMutation } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
+import { useNavigate } from "@tanstack/react-router";
 
 export function useSignupWithOtp() {
   const signupCredentialsRef = useRef<SignupData | null>(null);
   const [confirmOtp, setConfirmOtp] = useState<boolean>(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [otpExp, setOtpExp] = useState<number>();
+  const navigate = useNavigate();
 
   const { resetMessage, setMessage, setUserAuth } = useAuthStore(
     useShallow((state) => ({
@@ -113,6 +115,9 @@ export function useSignupWithOtp() {
         setConfirmOtp(false);
         // Reset the otp expiration
         setOtpExp(undefined);
+
+        // Navigate to login page after successful signup
+        navigate({ to: "/demo/form/login" });
       } catch (error) {
         if (error instanceof Error) {
           setMessage(true, error.message);
