@@ -11,9 +11,15 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as ProtectedImport } from './routes/_protected'
 import { Route as IndexImport } from './routes/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 import { Route as AuthGoogleImport } from './routes/auth/google'
+import { Route as ProtectedSettingsImport } from './routes/_protected/settings'
+import { Route as ProtectedHomeImport } from './routes/_protected/home'
+import { Route as ProtectedEventsImport } from './routes/_protected/events'
+import { Route as ProtectedBisPokerImport } from './routes/_protected/bis-poker'
+import { Route as ProtectedNicknameImport } from './routes/_protected/$nickname'
 import { Route as DemoFormSimpleImport } from './routes/demo.form.simple'
 import { Route as DemoFormSignupImport } from './routes/demo.form.signup'
 import { Route as DemoFormPhoneImport } from './routes/demo.form.phone'
@@ -23,6 +29,11 @@ import { Route as DemoFormEmailImport } from './routes/demo.form.email'
 import { Route as DemoFormAddressImport } from './routes/demo.form.address'
 
 // Create/Update Routes
+
+const ProtectedRoute = ProtectedImport.update({
+  id: '/_protected',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const IndexRoute = IndexImport.update({
   id: '/',
@@ -40,6 +51,36 @@ const AuthGoogleRoute = AuthGoogleImport.update({
   id: '/auth/google',
   path: '/auth/google',
   getParentRoute: () => rootRoute,
+} as any)
+
+const ProtectedSettingsRoute = ProtectedSettingsImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+
+const ProtectedHomeRoute = ProtectedHomeImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+
+const ProtectedEventsRoute = ProtectedEventsImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+
+const ProtectedBisPokerRoute = ProtectedBisPokerImport.update({
+  id: '/bis-poker',
+  path: '/bis-poker',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+
+const ProtectedNicknameRoute = ProtectedNicknameImport.update({
+  id: '/$nickname',
+  path: '/$nickname',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 
 const DemoFormSimpleRoute = DemoFormSimpleImport.update({
@@ -94,6 +135,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
+    }
+    '/_protected': {
+      id: '/_protected'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof ProtectedImport
+      parentRoute: typeof rootRoute
+    }
+    '/_protected/$nickname': {
+      id: '/_protected/$nickname'
+      path: '/$nickname'
+      fullPath: '/$nickname'
+      preLoaderRoute: typeof ProtectedNicknameImport
+      parentRoute: typeof ProtectedImport
+    }
+    '/_protected/bis-poker': {
+      id: '/_protected/bis-poker'
+      path: '/bis-poker'
+      fullPath: '/bis-poker'
+      preLoaderRoute: typeof ProtectedBisPokerImport
+      parentRoute: typeof ProtectedImport
+    }
+    '/_protected/events': {
+      id: '/_protected/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof ProtectedEventsImport
+      parentRoute: typeof ProtectedImport
+    }
+    '/_protected/home': {
+      id: '/_protected/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof ProtectedHomeImport
+      parentRoute: typeof ProtectedImport
+    }
+    '/_protected/settings': {
+      id: '/_protected/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ProtectedSettingsImport
+      parentRoute: typeof ProtectedImport
     }
     '/auth/google': {
       id: '/auth/google'
@@ -163,8 +246,34 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
+interface ProtectedRouteChildren {
+  ProtectedNicknameRoute: typeof ProtectedNicknameRoute
+  ProtectedBisPokerRoute: typeof ProtectedBisPokerRoute
+  ProtectedEventsRoute: typeof ProtectedEventsRoute
+  ProtectedHomeRoute: typeof ProtectedHomeRoute
+  ProtectedSettingsRoute: typeof ProtectedSettingsRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedNicknameRoute: ProtectedNicknameRoute,
+  ProtectedBisPokerRoute: ProtectedBisPokerRoute,
+  ProtectedEventsRoute: ProtectedEventsRoute,
+  ProtectedHomeRoute: ProtectedHomeRoute,
+  ProtectedSettingsRoute: ProtectedSettingsRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '': typeof ProtectedRouteWithChildren
+  '/$nickname': typeof ProtectedNicknameRoute
+  '/bis-poker': typeof ProtectedBisPokerRoute
+  '/events': typeof ProtectedEventsRoute
+  '/home': typeof ProtectedHomeRoute
+  '/settings': typeof ProtectedSettingsRoute
   '/auth/google': typeof AuthGoogleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
@@ -178,6 +287,12 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '': typeof ProtectedRouteWithChildren
+  '/$nickname': typeof ProtectedNicknameRoute
+  '/bis-poker': typeof ProtectedBisPokerRoute
+  '/events': typeof ProtectedEventsRoute
+  '/home': typeof ProtectedHomeRoute
+  '/settings': typeof ProtectedSettingsRoute
   '/auth/google': typeof AuthGoogleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
@@ -192,6 +307,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/_protected': typeof ProtectedRouteWithChildren
+  '/_protected/$nickname': typeof ProtectedNicknameRoute
+  '/_protected/bis-poker': typeof ProtectedBisPokerRoute
+  '/_protected/events': typeof ProtectedEventsRoute
+  '/_protected/home': typeof ProtectedHomeRoute
+  '/_protected/settings': typeof ProtectedSettingsRoute
   '/auth/google': typeof AuthGoogleRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
@@ -207,6 +328,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | ''
+    | '/$nickname'
+    | '/bis-poker'
+    | '/events'
+    | '/home'
+    | '/settings'
     | '/auth/google'
     | '/demo/tanstack-query'
     | '/demo/form/address'
@@ -219,6 +346,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | ''
+    | '/$nickname'
+    | '/bis-poker'
+    | '/events'
+    | '/home'
+    | '/settings'
     | '/auth/google'
     | '/demo/tanstack-query'
     | '/demo/form/address'
@@ -231,6 +364,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_protected'
+    | '/_protected/$nickname'
+    | '/_protected/bis-poker'
+    | '/_protected/events'
+    | '/_protected/home'
+    | '/_protected/settings'
     | '/auth/google'
     | '/demo/tanstack-query'
     | '/demo/form/address'
@@ -245,6 +384,7 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProtectedRoute: typeof ProtectedRouteWithChildren
   AuthGoogleRoute: typeof AuthGoogleRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoFormAddressRoute: typeof DemoFormAddressRoute
@@ -258,6 +398,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProtectedRoute: ProtectedRouteWithChildren,
   AuthGoogleRoute: AuthGoogleRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoFormAddressRoute: DemoFormAddressRoute,
@@ -280,6 +421,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/_protected",
         "/auth/google",
         "/demo/tanstack-query",
         "/demo/form/address",
@@ -293,6 +435,36 @@ export const routeTree = rootRoute
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/_protected": {
+      "filePath": "_protected.tsx",
+      "children": [
+        "/_protected/$nickname",
+        "/_protected/bis-poker",
+        "/_protected/events",
+        "/_protected/home",
+        "/_protected/settings"
+      ]
+    },
+    "/_protected/$nickname": {
+      "filePath": "_protected/$nickname.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/bis-poker": {
+      "filePath": "_protected/bis-poker.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/events": {
+      "filePath": "_protected/events.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/home": {
+      "filePath": "_protected/home.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/settings": {
+      "filePath": "_protected/settings.tsx",
+      "parent": "/_protected"
     },
     "/auth/google": {
       "filePath": "auth/google.tsx"

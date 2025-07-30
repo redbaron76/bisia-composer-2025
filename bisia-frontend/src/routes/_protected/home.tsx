@@ -11,21 +11,21 @@ function Home() {
   const userSlug = user?.displayName ? generateSlug(user.displayName) : 'tuo-nickname';
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-stone-900 rounded-lg border-2 border-black dark:border-yellow-400 p-6">
-        <h1 className="text-2xl font-bold text-black dark:text-yellow-400 mb-4">
-          Benvenuto su Bisiacaria.com, {user?.displayName || 'Utente'}!
+    <div className="space-y-8">
+      <div className="glass-card dark:glass-card-dark rounded-3xl p-8 floating-card">
+        <h1 className="text-3xl font-bold gradient-text dark:gradient-text-dark mb-4">
+          Benvenuto su Bisiacaria.com, {user?.displayName || 'Utente'}! 👋
         </h1>
-        <p className="text-black dark:text-white">
+        <p className="text-black/80 dark:text-white/80 text-lg">
           Il social network dei bisiachi ti dà il benvenuto nella tua homepage personale.
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-8">
         {/* Feed delle attività */}
-        <div className="bg-white dark:bg-stone-900 rounded-lg border-2 border-black dark:border-yellow-400 p-6">
-          <h2 className="text-xl font-bold text-black dark:text-yellow-400 mb-4">
-            Attività recenti
+        <div className="glass-card dark:glass-card-dark rounded-3xl p-8 floating-card">
+          <h2 className="text-2xl font-bold gradient-text dark:gradient-text-dark mb-6">
+            📈 Attività recenti
           </h2>
           <div className="space-y-3">
             {[1, 2, 3].map((item) => (

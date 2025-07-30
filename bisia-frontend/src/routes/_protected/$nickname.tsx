@@ -107,13 +107,13 @@ function ProfilePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header del profilo */}
-      <div className="bg-white dark:bg-stone-900 rounded-lg border-2 border-black dark:border-yellow-400 p-6">
+      <div className="glass-card dark:glass-card-dark rounded-3xl p-8 floating-card">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           {/* Avatar */}
           <div className="relative">
-            <div className="w-32 h-32 bg-stone-300 dark:bg-stone-600 rounded-full flex items-center justify-center border-2 border-black dark:border-yellow-400">
+            <div className="w-40 h-40 glass dark:glass-dark rounded-full flex items-center justify-center border-2 border-white/30 dark:border-yellow-400/30 backdrop-blur-sm">
               {profile.avatar ? (
                 <img 
                   src={profile.avatar} 
@@ -121,77 +121,77 @@ function ProfilePage() {
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <User className="w-16 h-16 text-stone-500" />
+                <User className="w-20 h-20 text-black/60 dark:text-white/60" />
               )}
             </div>
             {/* Status indicator */}
-            <div className={`absolute -bottom-1 -right-1 w-8 h-8 ${statusColors[profile.status]} rounded-full border-2 border-white dark:border-stone-900 flex items-center justify-center`}>
-              <span className="text-xs">{statusEmojis[profile.status]}</span>
+            <div className={`absolute -bottom-2 -right-2 w-12 h-12 ${statusColors[profile.status]} rounded-full border-4 border-white/80 dark:border-black/80 flex items-center justify-center backdrop-blur-sm`}>
+              <span className="text-lg">{statusEmojis[profile.status]}</span>
             </div>
           </div>
 
           {/* Info principali */}
           <div className="flex-1 text-center md:text-left">
-            <h1 className="text-3xl font-bold text-black dark:text-yellow-400 mb-2">
+            <h1 className="text-4xl font-bold gradient-text dark:gradient-text-dark mb-3">
               {profile.nickname}
             </h1>
-            <p className="text-sm text-stone-600 dark:text-stone-400 mb-1">
+            <p className="text-lg text-black/70 dark:text-white/70 mb-2 font-medium">
               @{profile.slug}
             </p>
             
-            <div className="flex flex-col md:flex-row gap-4 mt-4">
-              <div className="flex items-center justify-center md:justify-start gap-2 text-black dark:text-white">
-                <MapPin className="w-4 h-4" />
-                <span>{profile.location}</span>
+            <div className="flex flex-col md:flex-row gap-6 mt-6">
+              <div className="flex items-center justify-center md:justify-start gap-3 text-black dark:text-white glass dark:glass-dark rounded-2xl p-3 backdrop-blur-sm">
+                <MapPin className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                <span className="font-medium">{profile.location}</span>
               </div>
-              <div className="flex items-center justify-center md:justify-start gap-2 text-black dark:text-white">
-                <Calendar className="w-4 h-4" />
-                <span>{profile.age} anni</span>
+              <div className="flex items-center justify-center md:justify-start gap-3 text-black dark:text-white glass dark:glass-dark rounded-2xl p-3 backdrop-blur-sm">
+                <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                <span className="font-medium">{profile.age} anni</span>
               </div>
             </div>
 
-            <div className="mt-4">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+            <div className="mt-6">
+              <span className={`inline-flex items-center px-6 py-3 rounded-2xl text-base font-semibold backdrop-blur-sm ${
                 profile.isOnline 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                  : 'bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-200'
+                  ? 'bg-green-500/20 text-green-700 dark:text-green-300 border border-green-500/30' 
+                  : 'bg-stone-500/20 text-stone-700 dark:text-stone-300 border border-stone-500/30'
               }`}>
-                {profile.isOnline ? 'Online ora' : `Ultimo accesso: ${profile.lastSeen}`}
+                {profile.isOnline ? '🟢 Online ora' : `🔴 Ultimo accesso: ${profile.lastSeen}`}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-8">
         {/* Domande e Risposte */}
-        <div className="bg-white dark:bg-stone-900 rounded-lg border-2 border-black dark:border-yellow-400 p-6">
-          <h2 className="text-xl font-bold text-black dark:text-yellow-400 mb-4">Q&A</h2>
-          <div className="space-y-4">
+        <div className="glass-card dark:glass-card-dark rounded-3xl p-8 floating-card">
+          <h2 className="text-2xl font-bold gradient-text dark:gradient-text-dark mb-6">Q&A</h2>
+          <div className="space-y-6">
             {profile.questions.map((qa, index) => (
-              <div key={index} className="border-b border-stone-200 dark:border-stone-700 pb-3 last:border-b-0">
-                <p className="font-medium text-black dark:text-white mb-1">{qa.question}</p>
-                <p className="text-stone-600 dark:text-stone-400">{qa.answer}</p>
+              <div key={index} className="glass dark:glass-dark rounded-2xl p-4 backdrop-blur-sm">
+                <p className="font-semibold text-black dark:text-white mb-2 text-lg">{qa.question}</p>
+                <p className="text-black/70 dark:text-white/70 text-base">{qa.answer}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Preferenze */}
-        <div className="bg-white dark:bg-stone-900 rounded-lg border-2 border-black dark:border-yellow-400 p-6">
-          <h2 className="text-xl font-bold text-black dark:text-yellow-400 mb-4">Preferenze</h2>
+        <div className="glass-card dark:glass-card-dark rounded-3xl p-8 floating-card">
+          <h2 className="text-2xl font-bold gradient-text dark:gradient-text-dark mb-6">Preferenze</h2>
           
           {/* Cose che ama */}
-          <div className="mb-6">
-            <h3 className="flex items-center gap-2 font-medium text-green-600 dark:text-green-400 mb-2">
-              <Heart className="w-4 h-4" />
+          <div className="mb-8">
+            <h3 className="flex items-center gap-3 font-semibold text-green-600 dark:text-green-400 mb-4 text-lg">
+              <Heart className="w-6 h-6" />
               Ama
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {profile.preferences.loves.map((item, index) => (
                 <span 
                   key={index}
-                  className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm"
+                  className="px-4 py-2 bg-green-500/20 text-green-700 dark:text-green-300 rounded-2xl text-base font-medium backdrop-blur-sm border border-green-500/30 hover:scale-105 transition-transform cursor-pointer"
                 >
                   {item}
                 </span>
@@ -201,15 +201,15 @@ function ProfilePage() {
 
           {/* Cose che odia */}
           <div>
-            <h3 className="flex items-center gap-2 font-medium text-red-600 dark:text-red-400 mb-2">
-              <ThumbsDown className="w-4 h-4" />
+            <h3 className="flex items-center gap-3 font-semibold text-red-600 dark:text-red-400 mb-4 text-lg">
+              <ThumbsDown className="w-6 h-6" />
               Non sopporta
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {profile.preferences.hates.map((item, index) => (
                 <span 
                   key={index}
-                  className="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded-full text-sm"
+                  className="px-4 py-2 bg-red-500/20 text-red-700 dark:text-red-300 rounded-2xl text-base font-medium backdrop-blur-sm border border-red-500/30 hover:scale-105 transition-transform cursor-pointer"
                 >
                   {item}
                 </span>
@@ -220,13 +220,13 @@ function ProfilePage() {
       </div>
 
       {/* Azioni */}
-      <div className="bg-white dark:bg-stone-900 rounded-lg border-2 border-black dark:border-yellow-400 p-6">
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button className="px-6 py-2 bg-black dark:bg-yellow-400 text-yellow-400 dark:text-black font-medium rounded hover:bg-stone-800 dark:hover:bg-yellow-300 transition-colors">
-            Conosci
+      <div className="glass-card dark:glass-card-dark rounded-3xl p-8 floating-card">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <button className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold text-lg rounded-2xl hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl backdrop-blur-sm">
+            🤝 Conosci
           </button>
-          <button className="px-6 py-2 border-2 border-black dark:border-yellow-400 text-black dark:text-yellow-400 font-medium rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-            Messaggio
+          <button className="px-8 py-4 glass dark:glass-dark border-2 border-yellow-400/50 text-black dark:text-yellow-400 font-bold text-lg rounded-2xl hover:bg-yellow-400/20 transition-all duration-300 hover:scale-105 backdrop-blur-sm">
+            💬 Messaggio
           </button>
         </div>
       </div>

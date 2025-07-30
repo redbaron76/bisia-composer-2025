@@ -30,42 +30,42 @@ function ProtectedLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-yellow-400 dark:bg-black font-['Montserrat'] flex">
+    <div className="min-h-screen flex">
       {/* Left Sidebar - Desktop */}
-      <div className="hidden lg:block w-64 bg-white dark:bg-stone-900 border-r-2 border-black dark:border-yellow-400">
-        <div className="flex items-center justify-between p-4 border-b-2 border-black dark:border-yellow-400">
-          <h2 className="text-lg font-bold text-black dark:text-yellow-400">Menu</h2>
+      <div className="hidden lg:block w-64 glass-sidebar dark:glass-sidebar-dark rounded-r-3xl m-4 mr-2">
+        <div className="flex items-center justify-between p-6 border-b border-white/20 dark:border-yellow-400/20">
+          <h2 className="text-xl font-bold gradient-text dark:gradient-text-dark">Menu</h2>
         </div>
         
-        <nav className="p-4">
-          <ul className="flex w-full min-w-0 flex-col gap-1">
+        <nav className="p-6">
+          <ul className="flex w-full min-w-0 flex-col gap-3">
             <li className="group/menu-item relative">
-              <a href="/home" className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] hover:bg-yellow-400 dark:hover:bg-yellow-400 hover:text-black text-black dark:text-white font-medium">
-                <Home className="h-4 w-4 shrink-0" />
+              <a href="/home" className="flex w-full items-center gap-3 overflow-hidden rounded-2xl p-3 text-left text-sm outline-hidden transition-all duration-300 hover:bg-white/20 dark:hover:bg-yellow-400/20 hover:scale-105 text-black dark:text-white font-medium backdrop-blur-sm">
+                <Home className="h-5 w-5 shrink-0" />
                 <span className="truncate">Home</span>
               </a>
             </li>
             <li className="group/menu-item relative">
-              <a href="/profile" className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] hover:bg-yellow-400 dark:hover:bg-yellow-400 hover:text-black text-black dark:text-white font-medium">
-                <User className="h-4 w-4 shrink-0" />
+              <a href="/profile" className="flex w-full items-center gap-3 overflow-hidden rounded-2xl p-3 text-left text-sm outline-hidden transition-all duration-300 hover:bg-white/20 dark:hover:bg-yellow-400/20 hover:scale-105 text-black dark:text-white font-medium backdrop-blur-sm">
+                <User className="h-5 w-5 shrink-0" />
                 <span className="truncate">Mio Profilo</span>
               </a>
             </li>
             <li className="group/menu-item relative">
-              <a href="/events" className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] hover:bg-yellow-400 dark:hover:bg-yellow-400 hover:text-black text-black dark:text-white font-medium">
-                <Calendar className="h-4 w-4 shrink-0" />
+              <a href="/events" className="flex w-full items-center gap-3 overflow-hidden rounded-2xl p-3 text-left text-sm outline-hidden transition-all duration-300 hover:bg-white/20 dark:hover:bg-yellow-400/20 hover:scale-105 text-black dark:text-white font-medium backdrop-blur-sm">
+                <Calendar className="h-5 w-5 shrink-0" />
                 <span className="truncate">Eventi</span>
               </a>
             </li>
             <li className="group/menu-item relative">
-              <a href="/bis-poker" className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] hover:bg-yellow-400 dark:hover:bg-yellow-400 hover:text-black text-black dark:text-white font-medium">
-                <Spade className="h-4 w-4 shrink-0" />
+              <a href="/bis-poker" className="flex w-full items-center gap-3 overflow-hidden rounded-2xl p-3 text-left text-sm outline-hidden transition-all duration-300 hover:bg-white/20 dark:hover:bg-yellow-400/20 hover:scale-105 text-black dark:text-white font-medium backdrop-blur-sm">
+                <Spade className="h-5 w-5 shrink-0" />
                 <span className="truncate">Bis-Poker</span>
               </a>
             </li>
             <li className="group/menu-item relative">
-              <a href="/settings" className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] hover:bg-yellow-400 dark:hover:bg-yellow-400 hover:text-black text-black dark:text-white font-medium">
-                <Settings className="h-4 w-4 shrink-0" />
+              <a href="/settings" className="flex w-full items-center gap-3 overflow-hidden rounded-2xl p-3 text-left text-sm outline-hidden transition-all duration-300 hover:bg-white/20 dark:hover:bg-yellow-400/20 hover:scale-105 text-black dark:text-white font-medium backdrop-blur-sm">
+                <Settings className="h-5 w-5 shrink-0" />
                 <span className="truncate">Impostazioni</span>
               </a>
             </li>
@@ -73,9 +73,9 @@ function ProtectedLayout() {
               <button 
                 onClick={handleLogout}
                 disabled={logoutMutation.isPending}
-                className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] hover:bg-red-400 hover:text-white text-black dark:text-white font-medium disabled:opacity-50"
+                className="flex w-full items-center gap-3 overflow-hidden rounded-2xl p-3 text-left text-sm outline-hidden transition-all duration-300 hover:bg-red-500/20 hover:text-red-300 text-black dark:text-white font-medium disabled:opacity-50 backdrop-blur-sm"
               >
-                <LogOut className="h-4 w-4 shrink-0" />
+                <LogOut className="h-5 w-5 shrink-0" />
                 <span className="truncate">{logoutMutation.isPending ? "Disconnessione..." : "Logout"}</span>
               </button>
             </li>
@@ -86,14 +86,14 @@ function ProtectedLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <header className="bg-white dark:bg-stone-900 border-b-2 border-black dark:border-yellow-400 p-4 flex items-center justify-center lg:justify-between relative">
+        <header className="glass-header dark:glass-header-dark rounded-b-3xl m-4 mb-2 mx-2 lg:mx-4 p-6 flex items-center justify-center lg:justify-between relative">
           {/* Left Drawer Trigger - Mobile */}
           <Drawer direction="left">
             <DrawerTrigger asChild>
               <Button 
                 variant="outline" 
                 size="icon"
-                className="lg:hidden absolute left-4 bg-white dark:bg-stone-900 border-2 border-black dark:border-yellow-400 text-black dark:text-yellow-400 hover:bg-stone-100 dark:hover:bg-stone-800"
+                className="lg:hidden absolute left-4 glass dark:glass-dark rounded-2xl border-white/30 dark:border-yellow-400/30 text-black dark:text-yellow-400 hover:bg-white/20 dark:hover:bg-yellow-400/20 backdrop-blur-sm transition-all duration-300 hover:scale-110"
               >
                 <Home className="h-4 w-4" />
               </Button>
@@ -159,7 +159,7 @@ function ProtectedLayout() {
           </Drawer>
           
           {/* Center Title */}
-          <h1 className="text-xl font-bold text-black dark:text-yellow-400">
+          <h1 className="text-2xl font-bold gradient-text dark:gradient-text-dark">
             Bisiacaria.com
           </h1>
           
@@ -169,7 +169,7 @@ function ProtectedLayout() {
               <Button 
                 variant="outline" 
                 size="icon"
-                className="lg:hidden absolute right-4 bg-white dark:bg-stone-900 border-2 border-black dark:border-yellow-400 text-black dark:text-yellow-400 hover:bg-stone-100 dark:hover:bg-stone-800"
+                className="lg:hidden absolute right-4 glass dark:glass-dark rounded-2xl border-white/30 dark:border-yellow-400/30 text-black dark:text-yellow-400 hover:bg-white/20 dark:hover:bg-yellow-400/20 backdrop-blur-sm transition-all duration-300 hover:scale-110"
               >
                 <Users className="h-4 w-4" />
               </Button>
@@ -263,24 +263,26 @@ function ProtectedLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4">
-          <Outlet />
+        <main className="flex-1 p-4 lg:p-6">
+          <div className="glass-card dark:glass-card-dark rounded-3xl p-6 lg:p-8 floating-card">
+            <Outlet />
+          </div>
         </main>
       </div>
 
       {/* Right Sidebar - Desktop */}
-      <div className="hidden lg:block w-80 bg-white dark:bg-stone-900 border-l-2 border-black dark:border-yellow-400">
-        <div className="flex items-center justify-between p-4 border-b-2 border-black dark:border-yellow-400">
-          <h2 className="text-lg font-bold text-black dark:text-yellow-400">Utenti Online</h2>
+      <div className="hidden lg:block w-80 glass-sidebar dark:glass-sidebar-dark rounded-l-3xl m-4 ml-2">
+        <div className="flex items-center justify-between p-6 border-b border-white/20 dark:border-yellow-400/20">
+          <h2 className="text-xl font-bold gradient-text dark:gradient-text-dark">Utenti Online</h2>
         </div>
         
-        <div className="p-4">
+        <div className="p-6">
           {/* Search Form */}
           <div className="mb-6">
             <Input
               type="text"
               placeholder="Cerca nickname..."
-              className="w-full mb-2 border-2 border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-black dark:text-white focus:border-black dark:focus:border-yellow-400 focus:ring-0"
+              className="w-full mb-4 glass dark:glass-dark rounded-2xl border-white/30 dark:border-yellow-400/30 bg-transparent text-black dark:text-white placeholder:text-black/60 dark:placeholder:text-white/60 focus:border-white/50 dark:focus:border-yellow-400/50 focus:ring-0 backdrop-blur-sm"
             />
             
             {/* Advanced Search Accordion */}

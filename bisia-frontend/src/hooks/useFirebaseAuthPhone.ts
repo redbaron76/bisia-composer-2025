@@ -40,20 +40,29 @@ export function useFirebaseAuthPhone() {
   const signUpWithPhone = useCallback(async (phone: string) => {
     const recaptchaVerifier = createRecaptchaVerifier();
 
+    // Validate phone number format
+    if (!phone.startsWith('+')) {
+      throw new Error("Il numero di telefono deve iniziare con +");
+    }
+    
+    // Remove any spaces and ensure it's a valid format
+    const cleanPhone = phone.replace(/\s/g, '');
+    console.log('Sending phone to Firebase:', cleanPhone);
+
     try {
       // perform the sign in with phone number
       const result = await signInWithPhoneNumber(
         auth,
-        phone,
+        cleanPhone,
         recaptchaVerifier
       );
       // save the confirmation result
       setConfirmationResult(result);
     } catch (error) {
-      console.error(error);
-      throw new Error("Errore durante il login con telefono");
+      console.error('Firebase phone auth error:', error);
+      throw new Error("Errore durante il login con telefono. Verifica che il numero sia corretto.");
       // reset the recaptcha verifier
-      window.grecaptcha.reset(window.recaptchaWidgetId);
+      window.grecaptcha?.reset(window.recaptchaWidgetId);
     } finally {
       // reset the recaptcha verifier
       recaptchaVerifier.clear();

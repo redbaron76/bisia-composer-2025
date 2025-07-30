@@ -16,7 +16,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { OtpConfirmation } from "@/types/auth";
-import { useAppForm } from "@/hooks/demo.form";
+import { useBisiacariaForm } from "@/hooks/bisiacaria.form";
 import { useFirebaseAuthPhone } from "@/hooks/useFirebaseAuthPhone";
 import type { User as FirebaseUser } from "firebase/auth";
 import { useAuthStore } from "@/stores/AuthStore";
@@ -189,7 +189,7 @@ export function usePasswordless() {
     }
   };
 
-  const formPasswordless = useAppForm({
+  const formPasswordless = useBisiacariaForm({
     defaultValues: {
       username: "",
       email: "",
@@ -203,7 +203,7 @@ export function usePasswordless() {
     },
   });
 
-  const formOtp = useAppForm({
+  const formOtp = useBisiacariaForm({
     defaultValues: {
       otp: "",
     },

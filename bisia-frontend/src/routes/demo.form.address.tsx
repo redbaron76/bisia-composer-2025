@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { useAppForm } from '../hooks/demo.form'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/demo/form/address')({
   component: AddressForm,
@@ -35,8 +36,7 @@ function AddressForm() {
     },
     onSubmit: ({ value }) => {
       console.log(value)
-      // Show success message
-      alert('Form submitted successfully!')
+      toast.success('Form submitted successfully!')
     },
   })
 
